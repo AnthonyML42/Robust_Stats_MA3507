@@ -70,16 +70,22 @@ IRWLS_fit_simple <- function(x, y, weight_fn, max_iter = 1000, eps = 1e-6) {
 
 }
 
-s_scale_iteration <- function(r, start_val = madn(x), weight_fn, max_iter = 1000, eps = 1e-6) {
+s_scale_iteration <- function(r, start_val = madn(r), weight_fn, max_iter = 1000, eps = 1e-6) {
     # Estimation of scale according to 2.8.2 Maronna
     sigma_est <- start_val
-    delta <- 0.2
-
+    delta <- 0.5
     for (i in 1:max_iter) {
-        weights <- weight_fn(r / sigma_est)
+
+        if (sigma_est < .Machine$double.eps) { # can converge to 0 and the next op is a divide!
+            sigma_est <- Inf
+            message("hit")
+            break
+        }
+
+        weights <- as.vector(weight_fn(r / sigma_est))
         c = 1 / (length(r) * delta)
         sigma_new <- sqrt(c * sum(weights * r^2))
-
+        message(sigma_new)
         if (abs(sigma_new/sigma_est - 1) < eps) {
             sigma_est <- sigma_new
             break
@@ -87,24 +93,23 @@ s_scale_iteration <- function(r, start_val = madn(x), weight_fn, max_iter = 1000
             sigma_est <- sigma_new
         }
     }
-
     return(sigma_est)
 }
 
 
-fast_s_estimator <- function(x, y, weight_fn = bisquare_weight, alpha = 0.01, p = 2, epsilon = 0.5) {
+fast_s_estimator <- function(x, y, weight_fn, alpha = 0.01, p = 2, max_iter = 1000, eps = 1e-6) {
     # A Fast Algorithm for S-Regression Estimates 2006
 
     stopifnot(length(x) == length(y))
 
-    N_subsamp_approx <- ceiling(-log(alpha) / ((1 - epsilon) ^ p)) # this uses an approximation of log on the denominator vs the paper
+    # take the maximum breakdown epsilon=0.5 here, not to be confused with the convergence parameter "eps"
+    N_subsample_approx <- ceiling(-log(alpha) / ((1 - 0.5) ^ p)) # this uses an approximation of log on the denominator vs the paper
 
-    candidate_prelim <- vector("list", N_subsamp_approx)
+    candidate_prelim <- vector("list", N_subsample_approx)
+    X <- cbind(1, x)
 
-    for (i in 1:N_subsamp_approx) {
+    for (i in 1:N_subsample_approx) {
         subsample_idx <- sample(1:length(x), size=p)
-
-        X <- cbind(1, x)
 
         # fit a line through the subsampled points and then take the residuals with this line on the whole data
 
@@ -118,11 +123,10 @@ fast_s_estimator <- function(x, y, weight_fn = bisquare_weight, alpha = 0.01, p 
         # the following is very similar to IRWLS, hence the name I-step. Maybe the IRWLS function can be adapted to be used here
         # IRWLS_fit_simple does not currently jointly estimate scale - which is needed in this case
 
-        k <- 20
+        k <- 2 
 
-    
         for (j in 1:k) {
-            weights <- weight_fn(resid / sigma)
+            weights <- as.vector(weight_fn(resid / sigma))
             fit <- lm.wfit(X, y, weights)
             resid <- residuals(fit)
             sigma <- s_scale_iteration(resid, sigma, weight_fn=weight_fn)
@@ -136,13 +140,43 @@ fast_s_estimator <- function(x, y, weight_fn = bisquare_weight, alpha = 0.01, p 
     # How many to keep?
 
     N_keep <- min(10, N_subsample_approx) # this for now
+    results <- vector("list", N_keep)
 
     sorted_scale_idx <- sapply(candidate_prelim, `[[`, "scale")
     candidate_prelim <- candidate_prelim[order(sorted_scale_idx)[1:N_keep]]
+
+
+    # Now I-steps until convergence
+    for (c in seq_along(candidate_prelim)) { # R doesn't have .enumerate()!
+
+        beta <- candidate_prelim[[c]]$beta
+        sigma <- candidate_prelim[[c]]$scale
+
+        resid <- y - X %*% beta
+
+        # I-steps until convergence
+        for (i in 1:max_iter) {
+            weights <- as.vector(weight_fn(resid / sigma))
+            fit <- lm.wfit(X, y, weights)
+            resid <- residuals(fit)
+            sigma_new <- s_scale_iteration(resid, sigma, weight_fn=weight_fn)
+
+            if (abs((sigma_new / sigma) - 1) < eps) {
+                break
+            } else {
+                sigma <- sigma_new
+            }
+
+        }
+
+        results[[c]] <- list(beta = fit$coefficients, scale = sigma)
+    }
+
+    s_estimator_coefs <- results[[which.min(sapply(results, `[[`, "scale"))]]$beta
+
+    return(s_estimator_coefs)
+
 }
-
-
-
 
 
     #k <- 10 # apply k I-steps
