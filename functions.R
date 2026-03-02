@@ -2,7 +2,6 @@ bisquare_rho <- function(x, k = 1.345) {
     ifelse(abs(x) <= k, 1 - (1 - (x/k)^2)^3, 1)
 }
 
-
 huber_psi <- function(x, k = 1.345) {
     # constant for 95% normal efficiency of the estimator
 
@@ -70,22 +69,16 @@ IRWLS_fit_simple <- function(x, y, weight_fn, max_iter = 1000, eps = 1e-6) {
 
 }
 
-s_scale_iteration <- function(r, start_val = madn(r), weight_fn, max_iter = 1000, eps = 1e-6) {
+s_scale_iteration <- function(r, start_val = madn(r), rho_fn, max_iter = 1000, eps = 1e-6) {
     # Estimation of scale according to 2.8.2 Maronna
     sigma_est <- start_val
-    delta <- 0.5
+    b <- 0.5
     for (i in 1:max_iter) {
 
-        if (sigma_est < .Machine$double.eps) { # can converge to 0 and the next op is a divide!
-            sigma_est <- Inf
-            message("hit")
-            break
-        }
-
-        weights <- as.vector(weight_fn(r / sigma_est))
-        c = 1 / (length(r) * delta)
-        sigma_new <- sqrt(c * sum(weights * r^2))
-        message(sigma_new)
+        weights <- as.vector(rho_fn(r / sigma_est))
+        c = 1 / (length(r) * b)
+        # sigma_new <- sqrt(c * sum(weights * r^2))
+        sigma_new <- sigma_est * sqrt(mean(weights) / b)
         if (abs(sigma_new/sigma_est - 1) < eps) {
             sigma_est <- sigma_new
             break
@@ -99,17 +92,21 @@ s_scale_iteration <- function(r, start_val = madn(r), weight_fn, max_iter = 1000
 
 fast_s_estimator <- function(x, y, weight_fn, alpha = 0.01, p = 2, max_iter = 1000, eps = 1e-6) {
     # A Fast Algorithm for S-Regression Estimates 2006
+    # Because we're focusing on the p=2 case, the line (between two points) is a perfect fit
+    # This leads to some practical numerical problems, so we can increase the size of the subsample to 3 instead of 2 elements - and this doesn't affect the quality of the resulting estimator
 
     stopifnot(length(x) == length(y))
 
     # take the maximum breakdown epsilon=0.5 here, not to be confused with the convergence parameter "eps"
     N_subsample_approx <- ceiling(-log(alpha) / ((1 - 0.5) ^ p)) # this uses an approximation of log on the denominator vs the paper
 
+    rho_fn <- function(x) bisquare_rho(x, k=1.547)
+
     candidate_prelim <- vector("list", N_subsample_approx)
     X <- cbind(1, x)
 
     for (i in 1:N_subsample_approx) {
-        subsample_idx <- sample(1:length(x), size=p)
+        subsample_idx <- sample(1:length(x), size=(p+1))
 
         # fit a line through the subsampled points and then take the residuals with this line on the whole data
 
@@ -117,7 +114,7 @@ fast_s_estimator <- function(x, y, weight_fn, alpha = 0.01, p = 2, max_iter = 10
 
         resid <- y - X %*% fit$coefficients
  
-        sigma <- s_scale_iteration(resid, weight_fn=weight_fn)
+        sigma <- s_scale_iteration(resid, rho_fn=rho_fn)
 
         # Perform Improvement-steps on the candidates
         # the following is very similar to IRWLS, hence the name I-step. Maybe the IRWLS function can be adapted to be used here
@@ -129,13 +126,12 @@ fast_s_estimator <- function(x, y, weight_fn, alpha = 0.01, p = 2, max_iter = 10
             weights <- as.vector(weight_fn(resid / sigma))
             fit <- lm.wfit(X, y, weights)
             resid <- residuals(fit)
-            sigma <- s_scale_iteration(resid, sigma, weight_fn=weight_fn)
+            sigma <- s_scale_iteration(resid, sigma, rho_fn=rho_fn)
 
         }
 
         candidate_prelim[[i]] <- list(beta = fit$coefficients, scale = sigma)
     }
-
     # Sort and only keep the "good" ones
     # How many to keep?
 
@@ -149,7 +145,7 @@ fast_s_estimator <- function(x, y, weight_fn, alpha = 0.01, p = 2, max_iter = 10
     # Now I-steps until convergence
     for (c in seq_along(candidate_prelim)) { # R doesn't have .enumerate()!
 
-        beta <- candidate_prelim[[c]]$beta
+        beta <- as.vector(candidate_prelim[[c]]$beta)
         sigma <- candidate_prelim[[c]]$scale
 
         resid <- y - X %*% beta
@@ -159,7 +155,7 @@ fast_s_estimator <- function(x, y, weight_fn, alpha = 0.01, p = 2, max_iter = 10
             weights <- as.vector(weight_fn(resid / sigma))
             fit <- lm.wfit(X, y, weights)
             resid <- residuals(fit)
-            sigma_new <- s_scale_iteration(resid, sigma, weight_fn=weight_fn)
+            sigma_new <- s_scale_iteration(resid, sigma, rho_fn=rho_fn)
 
             if (abs((sigma_new / sigma) - 1) < eps) {
                 break
@@ -174,7 +170,7 @@ fast_s_estimator <- function(x, y, weight_fn, alpha = 0.01, p = 2, max_iter = 10
 
     s_estimator_coefs <- results[[which.min(sapply(results, `[[`, "scale"))]]$beta
 
-    return(s_estimator_coefs)
+    return(list(beta = s_estimator_coefs, scale = results[[which.min(sapply(results, `[[`, "scale"))]]$scale))
 
 }
 
