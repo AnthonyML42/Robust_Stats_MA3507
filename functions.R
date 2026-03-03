@@ -75,10 +75,10 @@ s_scale_iteration <- function(r, start_val = madn(r), rho_fn, max_iter = 1000, e
     b <- 0.5
     for (i in 1:max_iter) {
 
-        weights <- as.vector(rho_fn(r / sigma_est))
+        rho_vec <- as.vector(rho_fn(r / sigma_est))
         c = 1 / (length(r) * b)
-        # sigma_new <- sqrt(c * sum(weights * r^2))
-        sigma_new <- sigma_est * sqrt(mean(weights) / b)
+        sigma_new <- sigma_est * sqrt(mean(rho_vec) / b)
+
         if (abs(sigma_new/sigma_est - 1) < eps) {
             sigma_est <- sigma_new
             break
@@ -90,7 +90,7 @@ s_scale_iteration <- function(r, start_val = madn(r), rho_fn, max_iter = 1000, e
 }
 
 
-fast_s_estimator <- function(x, y, weight_fn, alpha = 0.01, p = 2, max_iter = 1000, eps = 1e-6) {
+fast_s_estimator <- function(x, y, alpha = 0.01, p = 2, max_iter = 1500, eps = 1e-6) {
     # A Fast Algorithm for S-Regression Estimates 2006
     # Because we're focusing on the p=2 case, the line (between two points) is a perfect fit
     # This leads to some practical numerical problems, so we can increase the size of the subsample to 3 instead of 2 elements - and this doesn't affect the quality of the resulting estimator
@@ -101,6 +101,7 @@ fast_s_estimator <- function(x, y, weight_fn, alpha = 0.01, p = 2, max_iter = 10
     N_subsample_approx <- ceiling(-log(alpha) / ((1 - 0.5) ^ p)) # this uses an approximation of log on the denominator vs the paper
 
     rho_fn <- function(x) bisquare_rho(x, k=1.547)
+    weight_fn <- function(x) bisquare_weight(x, k=1.547)
 
     candidate_prelim <- vector("list", N_subsample_approx)
     X <- cbind(1, x)
@@ -158,6 +159,7 @@ fast_s_estimator <- function(x, y, weight_fn, alpha = 0.01, p = 2, max_iter = 10
             sigma_new <- s_scale_iteration(resid, sigma, rho_fn=rho_fn)
 
             if (abs((sigma_new / sigma) - 1) < eps) {
+                sigma <- sigma_new
                 break
             } else {
                 sigma <- sigma_new
