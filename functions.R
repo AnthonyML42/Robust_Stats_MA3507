@@ -27,7 +27,7 @@ madn <- function(x) {
     return(1/c * median(abs(x - med), na.rm = TRUE))
 }
 
-IRWLS_fit_simple <- function(x, y, weight_fn, max_iter = 1000, eps = 1e-6) {
+IRWLS_fit_simple <- function(x, y, weight_fn, initial_est = "madn", max_iter = 1000, eps = 1e-6) {
     # The Iteratively Reweighted Least Squares algorithm is used for fitting least squares with "robust" loss functions.
     # Simple because the dispersion is not estimated from an S-estimator, and the initial residuals are done with OLS. 
     # This can cause the estimate to converge to a local minima for nonconvex psi functions.
@@ -37,10 +37,21 @@ IRWLS_fit_simple <- function(x, y, weight_fn, max_iter = 1000, eps = 1e-6) {
 
     X <- cbind(1, x)
 
-    fit <- lm.fit(X, y)
 
-    sigma_initial <- madn(residuals(fit))
+    if (initial_est == "madn") {
+        fit <- lm.fit(X, y)
+        sigma_initial <- madn(residuals(fit))
+    } else if (initial_est == "S") {
+        fast_s <- fast_s_estimator(x, y)
+        # originally fast_s returned the beta vector and scale, but I want to use residuals(...) so it needs to return a fit
+        sigma_initial <- fast_s$scale
+        fit <- fast_s$fit
+    } else {
+        print("Initial estimate not implemented")
+        stopifnot(1 == 0)
+    }
 
+    
     if (sigma_initial == 0) {
         med <- median(residuals(fit))
         if (med == 0) {
@@ -166,13 +177,12 @@ fast_s_estimator <- function(x, y, alpha = 0.01, p = 2, max_iter = 1500, eps = 1
             }
 
         }
-
-        results[[c]] <- list(beta = fit$coefficients, scale = sigma)
+        results[[c]] <- list(fit = fit, scale = sigma)
     }
 
-    s_estimator_coefs <- results[[which.min(sapply(results, `[[`, "scale"))]]$beta
+    min_scale_est <- results[[which.min(sapply(results, `[[`, "scale"))]]
 
-    return(list(beta = s_estimator_coefs, scale = results[[which.min(sapply(results, `[[`, "scale"))]]$scale))
+    return(list(fit = min_scale_est$fit, scale = min_scale_est$scale))
 
 }
 
