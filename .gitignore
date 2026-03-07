@@ -51,3 +51,5 @@ rsconnect/
 .vscode/
 
 *.pdf
+report_files/
+data/normal_efficiency.csv

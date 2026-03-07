@@ -1,0 +1,8 @@
+---
+title: "Outlier Detection and Robust Linear Regression"
+pdf-engine: xelatex
+execute:
+    echo: false
+    warning: false
+    message: false
+---
