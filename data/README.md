@@ -1,0 +1,1 @@
+This is a placeholder README for the data folder, where we store the output of our simulation studies and any datasets used for examples.
