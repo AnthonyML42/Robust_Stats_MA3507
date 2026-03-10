@@ -22,6 +22,13 @@ toc: true
 number-sections: true
 fontsize: 11pt
 
+format:
+    pdf:
+        colorlinks: true
+        toccolor: black
+        linkcolor: blue
+        citecolor: blue
+        urlcolor: blue
 abstract: |
     Test
 ---
@@ -45,7 +52,7 @@ library(glue)
 
 ```{r}
 #| label: tbl-normal-eff
-#| tbl-cap: Comparison of MM and OLS estimators with increasing $N_{pts}$
+#| tbl-cap: Comparison of variances of MM and OLS estimators with varying $N_{pts}$, averaged over 10,000 repetitions. Efficiency is calculated as the ratio of variances.
 
 df <- read.csv("../data/normal_efficiency.csv")
 
@@ -54,7 +61,7 @@ df %>%
     summarise(OLS_var = var(slope_ols), MM_var = var(slope_mm), efficiency = OLS_var / MM_var) %>%
     mutate(OLS_var = formatC(OLS_var, format = "e", digits = 3), MM_var = formatC(MM_var, format = "e", digits = 3), efficiency = round(efficiency, 2)) %>%
     kbl(
-        col.names = c("$N_{pts}$", "OLS var", "MM var", "Efficiency"),
+        col.names = c("$N_{pts}$", "$\\operatorname{Var}(\\hat{\\beta}_{\\text{OLS}})$", "$\\operatorname{Var}(\\hat{\\beta}_{\\text{MM}})$", "Efficiency"),
         format = "latex",
         booktabs = TRUE,
         escape = FALSE,
@@ -64,7 +71,7 @@ df %>%
 
 ```{r}
 #| label: tbl-gross-outlier-mse
-#| tbl-cap: "Comparison of MSEs of MM and OLS estimators with increasing $N_{pts}$ and $\\mathcal{N}(0, 10)$ noise on 40% of observations"
+#| tbl-cap: "Comparison of MSEs of MM and OLS estimators with varying $N_{pts}$ and $\\mathcal{N}(0, 10^2)$ noise on 40% of observations, averaged over 10,000 repetitions."
 
 contamination_pct <- 40
 
@@ -75,7 +82,7 @@ df %>%
     summarise(OLS_MSE = mean((slope_ols - 1)^2), MM_MSE = mean((slope_mm - 1)^2), ratio = OLS_MSE / MM_MSE) %>%
     mutate(OLS_MSE = formatC(OLS_MSE, format = "e", digits = 3), MM_MSE = formatC(MM_MSE, format = "e", digits = 3), ratio = round(ratio, 2)) %>%
     kbl(
-        col.names = c("$N_{pts}$", "MSE (OLS)", "MSE (MM)", "MSE Ratio"),
+        col.names = c("$N_{pts}$", "$\\text{MSE}(\\hat{\\beta}_{\\text{OLS}})$", "$\\text{MSE}(\\hat{\\beta}_{\\text{MM}})$", "MSE Ratio"),
         format = "latex",
         booktabs = TRUE,
         escape = FALSE,
