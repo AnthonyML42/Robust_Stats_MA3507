@@ -39,6 +39,104 @@ abstract: |
 
 # Simple Outlier Detection and Preliminaries
 
+# M-Estimators
+
+Many models applying statistics or classification are highly sensitive to outliers. Even one extreme outlier can skew estimates, resulting in unreliable results. Therefore, we must ensure stable estimation methods to manoeuvre around these problematic outliers.
+
+One of the main estimators in robust statistics is the M-estimator, meaning maximum likelihood–type estimator. These provide a flexible method for estimating parameters.
+
+They are defined as solutions to optimisation problems by choosing a loss function. Let $x_1, \dots, x_n$ be observations and let $\rho(\cdot)$ be a loss function. An M-estimator of parameter $\theta$ is defined as
+
+$$
+\hat{\theta} = \arg\min_\theta \sum_{i=1}^n \rho(x_i - \theta).
+$$
+
+We obtain the estimating equations by differentiating the objective function. Let
+
+$$
+\psi(u) = \rho'(u).
+$$
+
+Then the estimator satisfies
+
+$$
+\sum_{i=1}^n \psi(x_i - \hat{\theta}) = 0.
+$$
+
+Different choices of $\rho$ lead to different estimators. For example, absolute loss yields the sample median, while squared loss returns the sample mean.
+
+M-estimators can be used for an array of parameters including location, scale, and regression coefficients. Location M-estimators provide alternatives to the sample mean, scale estimators provide robustness in measuring dispersion, and in this report we focus on regression M-estimators, which can be interpreted as weighted least squares.
+
+## Regression M-Estimators
+
+For robust regression we consider the linear regression model
+
+$$
+y_i = x_i^T \beta + \varepsilon_i, \quad i = 1, \dots, n
+$$
+
+where $x_i$ is a vector of predictors and $\beta$ is the vector of regression coefficients. The residual corresponding to a parameter value $\beta$ is
+
+$$
+r_i(\beta) = y_i - x_i^T \beta.
+$$
+
+Regression M-estimators are defined by minimizing a robust objective function of the standardized residuals
+
+$$
+\hat{\beta} =
+\arg\min_\beta
+\sum_{i=1}^n
+\rho \left( \frac{r_i(\beta)}{s} \right),
+$$
+
+where $s$ is a scale estimate used to standardize the residuals.
+
+The corresponding estimating equations are
+
+$$
+\sum_{i=1}^n
+\psi \left( \frac{r_i(\beta)}{s} \right) x_i = 0,
+\quad \text{where} \quad \psi = \rho'.
+$$
+
+These equations can also be written in the form
+
+$$
+\sum_{i=1}^n w_i r_i(\beta)x_i = 0,
+$$
+
+with weights
+
+$$
+w_i =
+\frac{\psi\left(\frac{r_i(\beta)}{s}\right)}
+{\frac{r_i(\beta)}{s}}.
+$$
+
+Since many quantities depend on one another, the estimation procedure is iterative. The residuals depend on the estimate of $\beta$, the weights $w_i$ depend on the residuals through the $\psi$ function, and the updated estimate of $\beta$ depends on the weights.
+
+Typically, the estimation is performed using iteratively reweighted least squares (IRLS). We start from an initial estimate of $\beta$, compute the residuals, determine the weights from the $\psi$ function, and then compute a weighted least squares fit. This procedure is repeated until convergence.
+
+A scale estimate $s$ is used to standardize the objective function. The scale can either be fixed or estimated jointly with the regression parameters. It is important that $s$ is robust, since a non-robust scale could become very large when outliers are present. In that case the standardized residuals $\frac{r_i(\beta)}{s}$ become artificially small and the weighting mechanism no longer reduces the influence of extreme observations.
+
+A common choice for the initial scale estimate is the normalized median absolute deviation (MADN).
+
+The behaviour of the estimator is determined by the choice of loss function $\rho$, its derivative $\psi$, and the associated weight function $w$.
+
+Link to graph.
+
+Two common choices are the Huber and bisquare functions. The Huber function limits the influence of large residuals but never assigns a weight of zero, meaning extreme observations still have a small influence on the fit. In contrast, the bisquare function assigns zero weight to sufficiently large residuals, effectively removing these observations from the fitting procedure.
+
+While regression M-estimators improve robustness compared to ordinary least squares, the initial fit can still be sensitive to outliers. Even with a robust initial scale, large outliers may influence the early iterations of the algorithm. Consequently, regression M-estimators may not be sufficiently robust in all situations. This motivates the development of more robust procedures such as S-estimators, which are discussed in the following section.
+
+
+
+
+
+
+
+
 
 # Simulation study
 
