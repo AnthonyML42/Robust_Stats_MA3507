@@ -1,0 +1,90 @@
+---
+title: "Outlier Detection and Robust Linear Regression"
+pdf-engine: xelatex
+documentclass: article
+date: today
+date-format: "MMMM YYYY"
+header-includes:
+    - \usepackage{amsmath}
+    - \usepackage{booktabs}
+    - \usepackage{algorithm}
+    - \usepackage{algpseudocode}
+    - \usepackage{float}
+geometry: margin=1in
+execute:
+    echo: false
+    warning: false
+    message: false
+bibliography: references.bib
+csl: cardiff-university-harvard.csl
+link-citations: true
+toc: true
+number-sections: true
+fontsize: 11pt
+
+abstract: |
+    Test
+---
+
+# Introduction
+
+## Test
+
+# Simple Outlier Detection and Preliminaries
+
+
+# Simulation study
+
+```{r}
+#| label: library-setup
+library(knitr)
+library(kableExtra)
+library(tidyverse)
+library(glue)
+```
+
+```{r}
+#| label: tbl-normal-eff
+#| tbl-cap: Comparison of MM and OLS estimators with increasing $N_{pts}$
+
+df <- read.csv("../data/normal_efficiency.csv")
+
+df %>%
+    group_by(N_pts) %>%
+    summarise(OLS_var = var(slope_ols), MM_var = var(slope_mm), efficiency = OLS_var / MM_var) %>%
+    mutate(OLS_var = formatC(OLS_var, format = "e", digits = 3), MM_var = formatC(MM_var, format = "e", digits = 3), efficiency = round(efficiency, 2)) %>%
+    kbl(
+        col.names = c("$N_{pts}$", "OLS var", "MM var", "Efficiency"),
+        format = "latex",
+        booktabs = TRUE,
+        escape = FALSE,
+    ) %>%
+    kable_styling(latex_options = c("hold_position"))
+```
+
+```{r}
+#| label: tbl-gross-outlier-mse
+#| tbl-cap: "Comparison of MSEs of MM and OLS estimators with increasing $N_{pts}$ and $\\mathcal{N}(0, 10)$ noise on 40% of observations"
+
+contamination_pct <- 40
+
+df <- read.csv(glue("../data/gross_outlier_{contamination_pct}.csv"))
+
+df %>%
+    group_by(N_pts) %>%
+    summarise(OLS_MSE = mean((slope_ols - 1)^2), MM_MSE = mean((slope_mm - 1)^2), ratio = OLS_MSE / MM_MSE) %>%
+    mutate(OLS_MSE = formatC(OLS_MSE, format = "e", digits = 3), MM_MSE = formatC(MM_MSE, format = "e", digits = 3), ratio = round(ratio, 2)) %>%
+    kbl(
+        col.names = c("$N_{pts}$", "MSE (OLS)", "MSE (MM)", "MSE Ratio"),
+        format = "latex",
+        booktabs = TRUE,
+        escape = FALSE,
+    ) %>%
+    kable_styling(latex_options = c("hold_position"))
+```
+
+
+# References 
+
+::: {#refs}
+:::
