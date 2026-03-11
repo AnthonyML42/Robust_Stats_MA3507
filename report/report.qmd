@@ -19,6 +19,7 @@ bibliography: references.bib
 csl: cardiff-university-harvard.csl
 link-citations: true
 toc: true
+toc-depth: 2
 number-sections: true
 fontsize: 11pt
 
@@ -126,27 +127,57 @@ The behaviour of the estimator is determined by the choice of loss function $\rh
 
 Link to graph.
 
-Two common choices are the Huber and bisquare functions. The Huber function limits the influence of large residuals but never assigns a weight of zero, meaning extreme observations still have a small influence on the fit. In contrast, the bisquare function assigns zero weight to sufficiently large residuals, effectively removing these observations from the fitting procedure.
-
-While regression M-estimators improve robustness compared to ordinary least squares, the initial fit can still be sensitive to outliers. Even with a robust initial scale, large outliers may influence the early iterations of the algorithm. Consequently, regression M-estimators may not be sufficiently robust in all situations. This motivates the development of more robust procedures such as S-estimators, which are discussed in the following section.
-
-
-
-
-
-
-
-
-
-# Simulation study
-
 ```{r}
 #| label: library-setup
 library(knitr)
 library(kableExtra)
 library(tidyverse)
 library(glue)
+
+source("../functions.R")
+
 ```
+```{r}
+#| label: fig-psi-rho-weight-functions
+#| fig-cap: Plots of $\rho$, $\psi$ and weight functions of Huber and Bisquare M-estimators.
+
+k <- 1.548
+x_vals <- seq(-3, 3, length.out = 1000)
+plotting_df <- data.frame(x = x_vals, h_rho = huber_psi(x_vals, k = k))
+
+p1 <- ggplot(plotting_df, aes(x = x, y = h_rho))
+
+p1
+```
+
+
+Two common choices are the Huber and bisquare functions. The Huber function limits the influence of large residuals but never assigns a weight of zero, meaning extreme observations still have a small influence on the fit. In contrast, the bisquare function assigns zero weight to sufficiently large residuals, effectively removing these observations from the fitting procedure.
+
+While regression M-estimators improve robustness compared to ordinary least squares, the initial fit can still be sensitive to outliers. Even with a robust initial scale, large outliers may influence the early iterations of the algorithm. Consequently, regression M-estimators may not be sufficiently robust in all situations. This motivates the development of more robust procedures such as S-estimators, which are discussed in the following section.
+
+
+# Regression MM-Estimators and Fast-S
+
+MM-estimators were introduced by @10.1214/aos/1176350366 and work on a two-step process of starting with an S-estimator to robustly estimate scale, followed by M-estimation with fixed scale coming from the previous step. The S-estimator also provides a starting point for estimating $\beta$ in the second step. They are able to inherit the high breakdown point of the S-estimator, while also keeping the high normal efficiency of an M-estimator. As in the last section we want to find the minimum of 
+$$
+\hat{\beta} =
+\arg\min_\beta
+\sum_{i=1}^n
+\rho \left( \frac{r_i(\beta)}{s} \right).
+$$
+
+Computing an S-estimator is computationally challenging, and this worsens as the number of predictors ($p$) increases. We have implemented the *Fast-S* algorithm from @Salibian-Barrera01062006, and it has excellent run time for fitting a small to moderate number of predictors ($p=2$ in our case for fitting a slope and intercept term). The algorithm works by taking a number of random subsamples of the data and computing S-estimates on these subsamples, and then picking the "best" candidate for the scale. It can be shown the number of subsamples required to return an S-estimator with $\epsilon$ breakdown point with probability $1-\alpha$ is 
+
+$$N_{\text{sub}}\gtrapprox \frac{-\log(\alpha)}{(1-\epsilon)^p}.$$
+
+Taking $\alpha=0.01$ and $\epsilon=0.5$ we need at least 19 subsamples for fitting an intercept and slope. One potential concern with *Fast-S* is that it's non-deterministic and multiple re-runs will produce slightly different initial estimates. However, in practice the subsequent M-estimation still converges to a very similar final estimate in the end. Deterministic approaches such as @Peña01061999 can beat *Fast-S* especially for large $p$, although in R libraries *Fast-S* is the more popular choice as an initial estimate for MM-estimation.
+
+# Simulation study
+
+
+
+
+## Normal efficiency simulation
 
 ```{r}
 #| label: tbl-normal-eff
@@ -166,6 +197,8 @@ df %>%
     ) %>%
     kable_styling(latex_options = c("hold_position"))
 ```
+
+## Gross outlier contamination simulation
 
 ```{r}
 #| label: tbl-gross-outlier-mse
@@ -193,3 +226,6 @@ df %>%
 
 ::: {#refs}
 :::
+
+
+# Appendix {.appendix}
