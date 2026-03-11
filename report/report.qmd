@@ -125,14 +125,14 @@ A common choice for the initial scale estimate is the normalized median absolute
 
 The behaviour of the estimator is determined by the choice of loss function $\rho$, its derivative $\psi$, and the associated weight function $w$.
 
-Link to graph.
-
 ```{r}
 #| label: library-setup
 library(knitr)
 library(kableExtra)
 library(tidyverse)
 library(glue)
+library(latex2exp)
+library(patchwork)
 
 source("../functions.R")
 
@@ -140,18 +140,44 @@ source("../functions.R")
 ```{r}
 #| label: fig-psi-rho-weight-functions
 #| fig-cap: Plots of $\rho$, $\psi$ and weight functions of Huber and Bisquare M-estimators.
+#| fig-width: 10
+#| fig-height: 6
 
 k <- 1.548
-x_vals <- seq(-3, 3, length.out = 1000)
-plotting_df <- data.frame(x = x_vals, h_rho = huber_psi(x_vals, k = k))
+x_vals <- seq(-3, 3, length.out = 100)
+plotting_df <- data.frame(x = x_vals, h_rho = huber_rho(x_vals, k), 
+                                    h_psi = huber_psi(x_vals, k = k), 
+                                    bi_rho = bisquare_rho(x_vals, k = k), 
+                                    bi_psi = bisquare_psi(x_vals, k = k),
+                                    h_weight = huber_weight(x_vals, k = k),
+                                    bi_weight = bisquare_weight(x_vals, k = k))
+# maybe the following can be condensed...
 
-p1 <- ggplot(plotting_df, aes(x = x, y = h_rho))
+p1 <- ggplot(plotting_df) + 
+    geom_line(aes(x = x, y = h_rho), color = "blue") +
+    geom_line(aes(x = x, y = bi_rho), color = "red") +
+    labs(x = TeX("$x$"), y = TeX("$\\rho(x)$")) +
+    theme_minimal()
 
-p1
+p2 <- ggplot(plotting_df) + 
+    geom_line(aes(x = x, y = h_psi, color = "Huber")) +
+    geom_line(aes(x = x, y = bi_psi, color = "Bisquare")) +
+    scale_color_manual(values = c("Huber" = "blue", "Bisquare" = "red")) +
+    labs(x = TeX("$x$"), y = TeX("$\\psi(x)$"), color = "Estimator") +
+    theme_minimal()
+
+p3 <- ggplot(plotting_df) + 
+    geom_line(aes(x = x, y = h_weight), color = "blue") +
+    geom_line(aes(x = x, y = bi_weight), color = "red") +
+    labs(x = TeX("$x$"), y = "Weight") +
+    theme_minimal()
+
+p1 / p2 / p3 # this is from patchwork
 ```
 
 
-Two common choices are the Huber and bisquare functions. The Huber function limits the influence of large residuals but never assigns a weight of zero, meaning extreme observations still have a small influence on the fit. In contrast, the bisquare function assigns zero weight to sufficiently large residuals, effectively removing these observations from the fitting procedure.
+Two common choices are the Huber and bisquare functions. The Huber function limits the influence of large residuals but never assigns a weight of zero, meaning extreme observations still have a small influence on the fit. In contrast, the bisquare function assigns zero weight to sufficiently large residuals, effectively removing these observations from the fitting procedure. See @fig-psi-rho-weight-functions for plots of these M-estimators. An important detail is that the Huber weight is never equal to zero, whereas the Bisquare weight is equal to zero whenever $|x|<k$
+
 
 While regression M-estimators improve robustness compared to ordinary least squares, the initial fit can still be sensitive to outliers. Even with a robust initial scale, large outliers may influence the early iterations of the algorithm. Consequently, regression M-estimators may not be sufficiently robust in all situations. This motivates the development of more robust procedures such as S-estimators, which are discussed in the following section.
 
@@ -168,9 +194,9 @@ $$
 
 Computing an S-estimator is computationally challenging, and this worsens as the number of predictors ($p$) increases. We have implemented the *Fast-S* algorithm from @Salibian-Barrera01062006, and it has excellent run time for fitting a small to moderate number of predictors ($p=2$ in our case for fitting a slope and intercept term). The algorithm works by taking a number of random subsamples of the data and computing S-estimates on these subsamples, and then picking the "best" candidate for the scale. It can be shown the number of subsamples required to return an S-estimator with $\epsilon$ breakdown point with probability $1-\alpha$ is 
 
-$$N_{\text{sub}}\gtrapprox \frac{-\log(\alpha)}{(1-\epsilon)^p}.$$
+$$N_{\text{sub}}\geq\frac{\log(\alpha)}{\log(1-(1-\epsilon)^p)}.$$
 
-Taking $\alpha=0.01$ and $\epsilon=0.5$ we need at least 19 subsamples for fitting an intercept and slope. One potential concern with *Fast-S* is that it's non-deterministic and multiple re-runs will produce slightly different initial estimates. However, in practice the subsequent M-estimation still converges to a very similar final estimate in the end. Deterministic approaches such as @Peña01061999 can beat *Fast-S* especially for large $p$, although in R libraries *Fast-S* is the more popular choice as an initial estimate for MM-estimation.
+Taking $\alpha=0.01$ and $\epsilon=0.5$ we need at least 17 subsamples for fitting an intercept and slope. One potential concern with *Fast-S* is that it's non-deterministic and multiple re-runs will produce slightly different initial estimates. However, in practice the subsequent M-estimation still converges to a very similar final estimate in the end. Deterministic approaches such as @Peña01061999 can beat *Fast-S* especially for large $p$, although in R libraries *Fast-S* is the more popular choice as an initial estimate for MM-estimation.
 
 # Simulation study
 
@@ -181,7 +207,7 @@ Taking $\alpha=0.01$ and $\epsilon=0.5$ we need at least 19 subsamples for fitti
 
 ```{r}
 #| label: tbl-normal-eff
-#| tbl-cap: Comparison of variances of MM and OLS estimators with varying $N_{pts}$, averaged over 10,000 repetitions. Efficiency is calculated as the ratio of variances.
+#| tbl-cap: Comparison of variances of MM and OLS estimators with varying $N$, averaged over 10,000 repetitions. Efficiency is calculated as the ratio of variances.
 
 df <- read.csv("../data/normal_efficiency.csv")
 
@@ -190,7 +216,7 @@ df %>%
     summarise(OLS_var = var(slope_ols), MM_var = var(slope_mm), efficiency = OLS_var / MM_var) %>%
     mutate(OLS_var = formatC(OLS_var, format = "e", digits = 3), MM_var = formatC(MM_var, format = "e", digits = 3), efficiency = round(efficiency, 2)) %>%
     kbl(
-        col.names = c("$N_{pts}$", "$\\operatorname{Var}(\\hat{\\beta}_{\\text{OLS}})$", "$\\operatorname{Var}(\\hat{\\beta}_{\\text{MM}})$", "Efficiency"),
+        col.names = c("$N$", "$\\operatorname{Var}(\\hat{\\beta}_{\\text{OLS}})$", "$\\operatorname{Var}(\\hat{\\beta}_{\\text{MM}})$", "Efficiency"),
         format = "latex",
         booktabs = TRUE,
         escape = FALSE,
@@ -202,7 +228,7 @@ df %>%
 
 ```{r}
 #| label: tbl-gross-outlier-mse
-#| tbl-cap: "Comparison of MSEs of MM and OLS estimators with varying $N_{pts}$ and $\\mathcal{N}(0, 10^2)$ noise on 40% of observations, averaged over 10,000 repetitions."
+#| tbl-cap: "Comparison of MSEs of MM and OLS estimators with varying $N$ and $\\mathcal{N}(0, 10^2)$ noise on 40% of observations, averaged over 10,000 repetitions."
 
 contamination_pct <- 40
 
@@ -213,7 +239,7 @@ df %>%
     summarise(OLS_MSE = mean((slope_ols - 1)^2), MM_MSE = mean((slope_mm - 1)^2), ratio = OLS_MSE / MM_MSE) %>%
     mutate(OLS_MSE = formatC(OLS_MSE, format = "e", digits = 3), MM_MSE = formatC(MM_MSE, format = "e", digits = 3), ratio = round(ratio, 2)) %>%
     kbl(
-        col.names = c("$N_{pts}$", "$\\text{MSE}(\\hat{\\beta}_{\\text{OLS}})$", "$\\text{MSE}(\\hat{\\beta}_{\\text{MM}})$", "MSE Ratio"),
+        col.names = c("$N$", "$\\text{MSE}(\\hat{\\beta}_{\\text{OLS}})$", "$\\text{MSE}(\\hat{\\beta}_{\\text{MM}})$", "MSE Ratio"),
         format = "latex",
         booktabs = TRUE,
         escape = FALSE,
