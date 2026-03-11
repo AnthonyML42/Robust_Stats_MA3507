@@ -1,3 +1,4 @@
+library(MASS)
 source("functions.R")
 
 # note we are currently not returning the intercept term!
@@ -22,11 +23,13 @@ normal_efficiency_sim <- function(N_pts, small_var = 1, estimator = "MM", initia
 
     bi_fit <- IRWLS_fit_simple(x_vals, y_vals, initial_est = initial_estimator, weight_fn = weight_fn)
     ols_fit <- lm(y_vals ~ x_vals)
+    mass_fit <- rlm(y_vals ~ x_vals, method= "MM", psi = psi.bisquare)
 
     # return the slope [2], [1] would be the intercept
     list(
         bisquare_slope = coef(bi_fit)[2],
-        ols_slope      = coef(ols_fit)[2]
+        ols_slope      = coef(ols_fit)[2],
+        mass_slope     = coef(mass_fit)[2]
     )
 }
 
@@ -64,9 +67,11 @@ gross_outlier_sim <- function(N_pts, small_var = 1, big_var = 100, contamination
 
     bi_fit <- IRWLS_fit_simple(x_vals, y_vals, initial_est = initial_estimator, weight_fn = weight_fn)
     ols_fit <- lm(y_vals ~ x_vals)
+    mass_fit <- rlm(y_vals ~ x_vals, method= "MM", psi = psi.bisquare)
 
     list(
         bisquare_slope = coef(bi_fit)[2],
-        ols_slope      = coef(ols_fit)[2]
+        ols_slope      = coef(ols_fit)[2],
+        mass_slope     = coef(mass_fit)[2]
     )
 }
