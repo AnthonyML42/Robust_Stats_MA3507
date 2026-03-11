@@ -2,10 +2,14 @@ bisquare_rho <- function(x, k = 1.345) {
     ifelse(abs(x) <= k, 1 - (1 - (x / k)^2)^3, 1)
 }
 
+huber_rho <- function(x, k = 1.345) {
+    ifelse(abs(x) <= k, x^2, 2 * k * abs(x) - k^2)
+}
+
 huber_psi <- function(x, k = 1.345) {
     # constant for 95% normal efficiency of the estimator
 
-    return(ifelse(abs(x) <= k, x, k * sign(x)))
+    ifelse(abs(x) <= k, 2 * x, 2 * k * sign(x))
 }
 
 bisquare_psi <- function(x, k = 4.68) {
