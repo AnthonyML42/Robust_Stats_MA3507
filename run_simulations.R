@@ -17,7 +17,7 @@ if (!file.exists(normal_eff_outpath)) {
         seq_len(10000),
         \(rep_i) map(c(50, 200, 500), \(n) {
             sim <- normal_efficiency_sim(N_pts = n, small_var = 1)
-            tibble(rep = rep_i, N_pts = n, slope_mm = sim$bisquare_slope, slope_ols = sim$ols_slope)
+            tibble(rep = rep_i, N_pts = n, slope_mm = sim$bisquare_slope, slope_ols = sim$ols_slope, slope_mass = sim$mass_slope)
         }) %>% list_rbind(),
         .options = furrr_options(seed = 0),
         .progress = TRUE
@@ -37,7 +37,7 @@ if (!file.exists(gross_outlier_outpath)) {
         seq_len(10000),
         \(rep_i) map(c(50, 200, 500), \(n) {
             sim <- gross_outlier_sim(N_pts = n, small_var = 1, big_var = 100, contamination_proportion = contamination_pct / 100)
-            tibble(rep = rep_i, N_pts = n, slope_mm = sim$bisquare_slope, slope_ols = sim$ols_slope)
+            tibble(rep = rep_i, N_pts = n, slope_mm = sim$bisquare_slope, slope_ols = sim$ols_slope, slope_mass = sim$mass_slope)
         }) %>% list_rbind(),
         .options = furrr_options(seed = 0),
         .progress = TRUE

@@ -109,15 +109,15 @@ fast_s_estimator <- function(x, y, alpha = 0.01, p = 2, max_iter = 1500, eps = 1
     stopifnot(length(x) == length(y))
 
     # take the maximum breakdown epsilon=0.5 here, not to be confused with the convergence parameter "eps"
-    N_subsample_approx <- ceiling(-log(alpha) / ((1 - 0.5)^p)) # this uses an approximation of log on the denominator vs the paper
+    N_subsample <- ceiling(log(alpha) / log(1-(1-0.5)^p))
 
     rho_fn <- function(x) bisquare_rho(x, k = 1.547)
     weight_fn <- function(x) bisquare_weight(x, k = 1.547)
 
-    candidate_prelim <- vector("list", N_subsample_approx)
+    candidate_prelim <- vector("list", N_subsample)
     X <- cbind(1, x)
 
-    for (i in 1:N_subsample_approx) {
+    for (i in 1:N_subsample) {
         subsample_idx <- sample(1:length(x), size = (p + 1))
 
         # fit a line through the subsampled points and then take the residuals with this line on the whole data
@@ -146,7 +146,7 @@ fast_s_estimator <- function(x, y, alpha = 0.01, p = 2, max_iter = 1500, eps = 1
     # Sort and only keep the "good" ones
     # How many to keep?
 
-    N_keep <- min(10, N_subsample_approx) # this for now
+    N_keep <- min(10, N_subsample) # this for now
     results <- vector("list", N_keep)
 
     sorted_scale_idx <- sapply(candidate_prelim, `[[`, "scale")
