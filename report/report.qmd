@@ -89,7 +89,7 @@ $$
 \arg\min_\beta
 \sum_{i=1}^n
 \rho \left( \frac{r_i(\beta)}{s} \right),
-$$
+$$ {#eq-m-estimator-minimiser}
 
 where $s$ is a scale estimate used to standardize the residuals.
 
@@ -135,7 +135,6 @@ library(latex2exp)
 library(patchwork)
 
 source("../functions.R")
-
 ```
 ```{r}
 #| label: fig-psi-rho-weight-functions
@@ -145,28 +144,30 @@ source("../functions.R")
 
 k <- 1.548
 x_vals <- seq(-3, 3, length.out = 100)
-plotting_df <- data.frame(x = x_vals, h_rho = huber_rho(x_vals, k), 
-                                    h_psi = huber_psi(x_vals, k = k), 
-                                    bi_rho = bisquare_rho(x_vals, k = k), 
-                                    bi_psi = bisquare_psi(x_vals, k = k),
-                                    h_weight = huber_weight(x_vals, k = k),
-                                    bi_weight = bisquare_weight(x_vals, k = k))
+plotting_df <- data.frame(
+    x = x_vals, h_rho = huber_rho(x_vals, k),
+    h_psi = huber_psi(x_vals, k = k),
+    bi_rho = bisquare_rho(x_vals, k = k),
+    bi_psi = bisquare_psi(x_vals, k = k),
+    h_weight = huber_weight(x_vals, k = k),
+    bi_weight = bisquare_weight(x_vals, k = k)
+)
 # maybe the following can be condensed...
 
-p1 <- ggplot(plotting_df) + 
+p1 <- ggplot(plotting_df) +
     geom_line(aes(x = x, y = h_rho), color = "blue") +
     geom_line(aes(x = x, y = bi_rho), color = "red") +
     labs(x = TeX("$x$"), y = TeX("$\\rho(x)$")) +
     theme_minimal()
 
-p2 <- ggplot(plotting_df) + 
+p2 <- ggplot(plotting_df) +
     geom_line(aes(x = x, y = h_psi, color = "Huber")) +
     geom_line(aes(x = x, y = bi_psi, color = "Bisquare")) +
     scale_color_manual(values = c("Huber" = "blue", "Bisquare" = "red")) +
     labs(x = TeX("$x$"), y = TeX("$\\psi(x)$"), color = "Estimator") +
     theme_minimal()
 
-p3 <- ggplot(plotting_df) + 
+p3 <- ggplot(plotting_df) +
     geom_line(aes(x = x, y = h_weight), color = "blue") +
     geom_line(aes(x = x, y = bi_weight), color = "red") +
     labs(x = TeX("$x$"), y = "Weight") +
@@ -176,47 +177,61 @@ p1 / p2 / p3 # this is from patchwork
 ```
 
 
-Two common choices are the Huber and bisquare functions. The Huber function limits the influence of large residuals but never assigns a weight of zero, meaning extreme observations still have a small influence on the fit. In contrast, the bisquare function assigns zero weight to sufficiently large residuals, effectively removing these observations from the fitting procedure. See @fig-psi-rho-weight-functions for plots of these M-estimators. An important detail is that the Huber weight is never equal to zero, whereas the Bisquare weight is equal to zero whenever $|x|<k$
-
+Two common choices are the Huber and Bisquare functions, see @fig-psi-rho-weight-functions for their plots. The Huber function limits the influence of large residuals but never assigns a weight of zero, meaning extreme observations still have a small influence on the fit. In contrast, the bisquare function assigns zero weight to sufficiently large residuals, effectively removing these observations from the fitting procedure. M-estimators which satisfy this are called *redescending* and they are the most popular for linear regression, despite them not necessarily producing a unique solution of @eq-m-estimator-minimiser. 
 
 While regression M-estimators improve robustness compared to ordinary least squares, the initial fit can still be sensitive to outliers. Even with a robust initial scale, large outliers may influence the early iterations of the algorithm. Consequently, regression M-estimators may not be sufficiently robust in all situations. This motivates the development of more robust procedures such as S-estimators, which are discussed in the following section.
 
-
 # Regression MM-Estimators and Fast-S
 
-MM-estimators were introduced by @10.1214/aos/1176350366 and work on a two-step process of starting with an S-estimator to robustly estimate scale, followed by M-estimation with fixed scale coming from the previous step. The S-estimator also provides a starting point for estimating $\beta$ in the second step. They are able to inherit the high breakdown point of the S-estimator, while also keeping the high normal efficiency of an M-estimator. As in the last section we want to find the minimum of 
-$$
-\hat{\beta} =
-\arg\min_\beta
-\sum_{i=1}^n
-\rho \left( \frac{r_i(\beta)}{s} \right).
-$$
+MM-estimators were introduced by @10.1214/aos/1176350366 and work on a two-step process of starting with an S-estimator to robustly estimate scale, followed by M-estimation with fixed scale coming from the previous step. The S-estimator also provides a starting point for estimating $\beta$ in the second step. They are able to inherit the high breakdown point of the S-estimator, while also keeping the high normal efficiency of an M-estimator. The M-estimation step follows @eq-m-estimator-minimiser as in the previous section.
 
-Computing an S-estimator is computationally challenging, and this worsens as the number of predictors ($p$) increases. We have implemented the *Fast-S* algorithm from @Salibian-Barrera01062006, and it has excellent run time for fitting a small to moderate number of predictors ($p=2$ in our case for fitting a slope and intercept term). The algorithm works by taking a number of random subsamples of the data and computing S-estimates on these subsamples, and then picking the "best" candidate for the scale. It can be shown the number of subsamples required to return an S-estimator with $\epsilon$ breakdown point with probability $1-\alpha$ is 
+Let $p$ denote the number of predictors in a regression problem. Computing an S-estimator is computationally challenging, but there are viable approximations for $p$ small. We have implemented the *Fast-S* algorithm from @Salibian-Barrera01062006, which works well for small or moderate values of $p$. The algorithm works by taking a number of random subsamples of the data and computing S-estimates on these subsamples, and then picking the "best" candidate for the scale. It can be shown the number of subsamples required to return an S-estimator with $\epsilon$ breakdown point with probability $1-\alpha$ is 
 
-$$N_{\text{sub}}\geq\frac{\log(\alpha)}{\log(1-(1-\epsilon)^p)}.$$
+$$N_{\text{sub}}\geq\frac{\log(\alpha)}{\log(1-(1-\epsilon)^p)}.$${#eq-subsample-lbound}
 
-Taking $\alpha=0.01$ and $\epsilon=0.5$ we need at least 17 subsamples for fitting an intercept and slope. One potential concern with *Fast-S* is that it's non-deterministic and multiple re-runs will produce slightly different initial estimates. However, in practice the subsequent M-estimation still converges to a very similar final estimate in the end. Deterministic approaches such as @Peña01061999 can beat *Fast-S* especially for large $p$, although in R libraries *Fast-S* is the more popular choice as an initial estimate for MM-estimation.
+Taking $\alpha=0.01$, $\epsilon=0.5$ and $p=2$ for a slope and intercept term, the algorithm requires at least 17 subsamples of the data. @eq-subsample-lbound also shows that the number of subsamples scales exponentially in $p$. One potential concern with *Fast-S* is that it's non-deterministic and multiple re-runs will produce slightly different initial estimates. However, in practice the subsequent M-estimation still converges to a very similar final estimate in the end. Deterministic approaches such as @Peña01061999 can perform much better than *Fast-S* for large $p$, although in R libraries *Fast-S* is the more popular choice as an initial estimate for MM-estimation.
 
-# Simulation study
+# Simulation study {#sec-simulation}
 
-
-
+In this section we carry out simulations to compare the MM-estimator to ordinary least squares (OLS) on synthetic data. We aim to provide strong evidence that the proposed regression estimator has many desirable statistical properties. Simulations were carried out using the `furrr` package (@furrr), and regression lines were fit for $N=50, 200$ and $500$ with $10,000$ repetitions. Note that for results formatted as ratios, the OLS estimate is taken as the numerator. For simplicity, the following section deals with the estimate of the slope only.
 
 ## Normal efficiency simulation
 
+Although MM-estimators were designed to deal with outliers and non-normal errors, it's also important to check they perform well in the case where the data has only irreducible noise. We take $y=x+\epsilon$ with $\epsilon\sim\mathcal{N}(0,1)$. The results can be found in @tbl-normal-eff. We see that the efficiency of 95% relative to OLS agrees with the value of $k=4.68$ used in the Bisquare M-estimator. Furthmore, the results show strong evidence that the M-estimator is consistent from the reduction of MSE as $N$ increases.
+
 ```{r}
 #| label: tbl-normal-eff
-#| tbl-cap: Comparison of variances of MM and OLS estimators with varying $N$, averaged over 10,000 repetitions. Efficiency is calculated as the ratio of variances.
+#| tbl-cap: Comparison of variances of MM and OLS estimators with varying $N$, averaged over 10,000 repetitions. Efficiency is calculated as the ratio of variances, and note that as $\text{MSE}\approx\operatorname{Var}$ the efficiency and MSE ratio are identical after rounding.
 
+
+mse <- function(x, x_hat) {
+    mean((x - x_hat)^2)
+}
+
+# switching to a long format df can work too, but for only a few cols we prefer this
 df <- read.csv("../data/normal_efficiency.csv")
 
 df %>%
     group_by(N_pts) %>%
-    summarise(OLS_var = var(slope_ols), MM_var = var(slope_mm), efficiency = OLS_var / MM_var) %>%
-    mutate(OLS_var = formatC(OLS_var, format = "e", digits = 3), MM_var = formatC(MM_var, format = "e", digits = 3), efficiency = round(efficiency, 2)) %>%
+    summarise(
+        OLS_mse = mse(slope_ols, 1),
+        MM_mse = mse(slope_mm, 1),
+        OLS_var = var(slope_ols),
+        MM_var = var(slope_mm),
+        efficiency = OLS_var / MM_var,
+        mse_ratio = OLS_mse / MM_mse,
+    ) %>%
+    mutate(across(!c(efficiency, N_pts, mse_ratio), ~ formatC(.x, format = "e", digits = 3)), efficiency = round(efficiency, 2), mse_ratio = round(mse_ratio, 2)) %>%
     kbl(
-        col.names = c("$N$", "$\\operatorname{Var}(\\hat{\\beta}_{\\text{OLS}})$", "$\\operatorname{Var}(\\hat{\\beta}_{\\text{MM}})$", "Efficiency"),
+        col.names = c(
+            "$N$",
+            "$\\text{MSE}(\\hat{\\beta}_{\\text{OLS}})$",
+            "$\\text{MSE}(\\hat{\\beta}_{\\text{MM}})$",
+            "$\\operatorname{Var}({\\hat{\\beta}_{\\text{OLS}}})$",
+            "$\\operatorname{Var}({\\hat{\\beta}_{\\text{MSE}}})$",
+            "Efficiency",
+            "MSE ratio"
+        ),
         format = "latex",
         booktabs = TRUE,
         escape = FALSE,
@@ -228,7 +243,7 @@ df %>%
 
 ```{r}
 #| label: tbl-gross-outlier-mse
-#| tbl-cap: "Comparison of MSEs of MM and OLS estimators with varying $N$ and $\\mathcal{N}(0, 10^2)$ noise on 40% of observations, averaged over 10,000 repetitions."
+#| tbl-cap: "Comparison of MSEs of MM and OLS estimators with varying $N$ and $\\mathcal{N}(0, 10^2)$ noise on 40% of observations, averaged over 10,000 repetitions. See the comment in @tbl-normal-eff regarding the efficiency and MSE ratio columns."
 
 contamination_pct <- 40
 
@@ -236,10 +251,25 @@ df <- read.csv(glue("../data/gross_outlier_{contamination_pct}.csv"))
 
 df %>%
     group_by(N_pts) %>%
-    summarise(OLS_MSE = mean((slope_ols - 1)^2), MM_MSE = mean((slope_mm - 1)^2), ratio = OLS_MSE / MM_MSE) %>%
-    mutate(OLS_MSE = formatC(OLS_MSE, format = "e", digits = 3), MM_MSE = formatC(MM_MSE, format = "e", digits = 3), ratio = round(ratio, 2)) %>%
+    summarise(
+        OLS_mse = mse(slope_ols, 1),
+        MM_mse = mse(slope_mm, 1),
+        OLS_var = var(slope_ols),
+        MM_var = var(slope_mm),
+        efficiency = OLS_var / MM_var,
+        mse_ratio = OLS_mse / MM_mse,
+    ) %>%
+    mutate(across(!c(efficiency, N_pts, mse_ratio), ~ formatC(.x, format = "e", digits = 3)), efficiency = round(efficiency, 2), mse_ratio = round(mse_ratio, 2)) %>%
     kbl(
-        col.names = c("$N$", "$\\text{MSE}(\\hat{\\beta}_{\\text{OLS}})$", "$\\text{MSE}(\\hat{\\beta}_{\\text{MM}})$", "MSE Ratio"),
+        col.names = c(
+            "$N$",
+            "$\\text{MSE}(\\hat{\\beta}_{\\text{OLS}})$",
+            "$\\text{MSE}(\\hat{\\beta}_{\\text{MM}})$",
+            "$\\operatorname{Var}({\\hat{\\beta}_{\\text{OLS}}})$",
+            "$\\operatorname{Var}({\\hat{\\beta}_{\\text{MSE}}})$",
+            "Efficiency",
+            "MSE ratio"
+        ),
         format = "latex",
         booktabs = TRUE,
         escape = FALSE,
@@ -255,3 +285,20 @@ df %>%
 
 
 # Appendix {.appendix}
+
+## Normal distribution of MM-estimator slopes
+
+```{r}
+#| label: fig-slope-histogram-appendix
+#| fig-cap: Histogram of slopes (for $N=500$) of MM-estimator simulated in @sec-simulation
+#| fig-width: 10
+#| fig-height: 6
+
+
+df %>%
+    filter(N_pts == 500) %>%
+    ggplot(aes(x = slope_mm)) +
+    geom_histogram(bins = 30) +
+    labs(x = TeX("$\\hat{\\beta}_{MM}$"), y = "Count") +
+    theme_minimal()
+```
