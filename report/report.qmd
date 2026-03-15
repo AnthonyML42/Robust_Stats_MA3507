@@ -10,6 +10,7 @@ header-includes:
     - \usepackage{algorithm}
     - \usepackage{algpseudocode}
     - \usepackage{float}
+fig-pos: "H"
 geometry: margin=1in
 execute:
     echo: false
@@ -286,19 +287,150 @@ df %>%
 
 # Appendix {.appendix}
 
+## Algorithms {#sec-algos}
+
+```{=latex}
+\newcommand{\Break}{\State \textbf{break}}
+\algnotext{EndFor}
+\algnotext{EndIf}
+\algnotext{EndWhile}
+\algnotext{EndFunction}
+
+\begin{algorithm}[H]
+\caption{Fast-S}\label{alg:fast-s}
+\begin{algorithmic}
+\Require $n \geq 0$
+\Require $\text{length}(x) = \text{length}(y)$
+\Require $T\gg0$ maximum number of iterations
+\Function{Fast{-}S}{$x, y, p, T$}
+    \State $\mathbf{X} \leftarrow \begin{bmatrix} \mathbf{1} & x \end{bmatrix}$ \Comment{add column of 1s for the intercept term}
+    \State $\text{candidates} \leftarrow [\, ]$
+    \State $N_{\text{sub}} \leftarrow \lceil \log(\alpha) / \log(1 - (1-\epsilon)^p) \rceil$ \Comment{see \eqref{eq-subsample-lbound}}
+    \State  $\rho_k(x), w_k(x)$ \leftarrow \text{Bisquare $\rho$, and weight resp. with $k=1.547$}
+
+    \For{$i = 1, \dots, N_{\text{sub}}$}
+        \State $\xi_i \leftarrow $ random subsample of $p$ indices from $\{1, \dots, n\}$
+        \State $\mathbf{X}_{i} \leftarrow X[\xi_i,\, :]$
+        \State $y_{i} \leftarrow y[\xi_i]$
+        \State $\hat{\beta} \leftarrow (\mathbf{X}_i^\top \mathbf{X}_i)^{-1} \mathbf{X}_i^\top y_i$ \Comment{fitting OLS through $p$ points}
+        \State $r(\hat{\beta}) \leftarrow y - \mathbf{X} \hat{\beta}$ \Comment{take residuals on the full data}
+        \State $s_{\text{init}} \leftarrow \Call{MADN}{r(\hat{\beta})}$
+        \State $s \leftarrow \Call{S-scale-iteration}{r(\hat{\beta}), s_{\text{init}}, \, \rho_{k}(x)}$
+
+        \State $K_{\text{iter}} \leftarrow 2$ \Comment{this can also be set to 1 with little effect on the output}
+        \\
+        
+        \For{$j = 1, \dots, K_{\text{iter}}}$ \Comment{Do Improvement-steps (I-steps), similar to IRLS}
+
+            \State $(\hat{\beta}, s ) \leftarrow \Call {I{-}Step}{\hat{\beta}, s, \, \rho_{k}(x), w_k(x)$}
+        \EndFor
+        \State $\text{candidates}[i] \leftarrow (\hat{\beta},\ s)$
+    \EndFor
+
+    \State $\text{candidates} \leftarrow$ the $\min(10, N_{\text{sub}})$ candidates with smallest $s$
+    \\
+    \State $s^* \leftarrow \infty$
+
+    \For{$(\hat{\beta}, s) \in \text{candidates}$}
+        \For{$i = 1 \dots T$} \Comment{I-steps until convergence}
+            \State $(\hat{\beta}, s_{\text{new}}) \leftarrow \Call {I{-}Step}{\hat{\beta}, s, \, \rho_{k}(x), w_k(x)$}
+            \If{$|(s_{\text{new}} / s) - 1| < \epsilon$} \Comment{convergence check}
+                \State $s \leftarrow s_{\text{new}}$
+                \Break
+            \Else
+                \State $s \leftarrow s_{\text{new}}$
+            \EndIf
+        \EndFor
+        \If{$s < s^*$}
+            \State $(\hat{\beta}^*, s^*) \leftarrow (\hat{\beta}, s)$
+        \EndIf
+    \EndFor
+
+    \State \Return $(\hat{\beta}^*, s^*)$
+
+    \EndFunction
+
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\caption{S{-}Scale{-}iteration}\label{alg:s-scale}
+\begin{algorithmic}
+\Function{S{-}Scale{-}iteration}{$r(\hat{\beta}), s_{\text{init}}, \rho_k, w_k, T$}
+
+    \State $b \leftarrow 0.5$ \Comment{chosen for the Bisquare family}
+
+    \State $s \leftarrow s_{\text{init}}$
+    \For{$k = 1, \dots, T$}
+        \State $s_{\text{new}} \leftarrow s \sqrt{\frac{1}{nb} \sum_{i=1}^{n} \rho(r(\hat{\beta}) / s)}$ 
+        \If{$|(s_{\text{new}} / s) - 1| < \epsilon$} \Comment{convergence check}
+            \Break
+        \EndIf
+    \EndFor
+    \State \Return $s$
+\EndFunction
+
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\caption{I{-}Step}\label{alg:i-step}
+\begin{algorithmic}
+
+\Function{I{-}Step}{$\hat{\beta}, s_{\text{init}}, \rho_k, w_k$}
+    \State $\mathbf{W} \leftarrow \text{diag}(w_k(r(\hat{\beta}) / s))$
+    \State $\hat{\beta} \leftarrow (\mathbf{X}^\top \mathbf{W} \mathbf{X})^{-1} \mathbf{X}^\top \mathbf{W} y$
+    \State $r(\hat{\beta}) \leftarrow y - \mathbf{X} \hat{\beta}$
+    \State $s \leftarrow \Call{S-scale-iteration}{r(\hat{\beta}), s_{\text{init}}, \, \rho_{k}(x)}$
+    \State \Return $(\hat{\beta}, s)$
+\EndFunction
+
+\end{algorithmic}
+\end{algorithm}
+```
+
+
 ## Normal distribution of MM-estimator slopes
+
+First we check a histogram and QQplot of the MM-estimator slopes in @fig-slope-histogram-appendix. Visually it appears the slopes follow an approximately normal distribution. Then in @tbl-mm-ad-test-appendix we see the null hypothesis is rejected only for $N=50$, which can be attributed to it being a small sample.
 
 ```{r}
 #| label: fig-slope-histogram-appendix
-#| fig-cap: Histogram of slopes (for $N=500$) of MM-estimator simulated in @sec-simulation
-#| fig-width: 10
-#| fig-height: 6
+#| fig-cap: Histogram of slopes (above) and QQplot (below) of MM-estimator simulated in @sec-simulation for the $N=500$ case.
+#| fig-width: 6
+#| fig-height: 3
 
 
-df %>%
+hist <- df %>%
     filter(N_pts == 500) %>%
     ggplot(aes(x = slope_mm)) +
     geom_histogram(bins = 30) +
     labs(x = TeX("$\\hat{\\beta}_{MM}$"), y = "Count") +
     theme_minimal()
+
+qqplot <- df %>%
+    filter(N_pts == 500) %>%
+    ggplot(aes(sample = slope_mm)) +
+    stat_qq(size = 0.15) +
+    stat_qq_line() +
+    theme_minimal()
+
+hist / qqplot
+```
+
+```{r}
+#| label: tbl-mm-ad-test-appendix
+#| tbl-cap: Anderson-Darling (AD) test p-values by $N$.
+
+df %>% group_by(N_pts) %>%
+    summarise(ad_pval = ad.test(slope_mm)$p.value) %>%
+    mutate(ad_pval = formatC(ad_pval, format = "e", digits = 3)) %>%
+    kbl(
+        col.names = c("$N$", "AD p-value"),
+        format = "latex",
+        booktabs = TRUE,
+        escape = FALSE,
+        align = "rc"
+    ) %>%
+    kable_styling(latex_options = c("hold_position"))
 ```
