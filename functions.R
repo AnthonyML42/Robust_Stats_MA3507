@@ -87,7 +87,7 @@ s_scale_iteration <- function(r, start_val = madn(r), rho_fn, max_iter = 1000, e
     b <- 0.5
     for (i in 1:max_iter) {
         rho_vec <- as.vector(rho_fn(r / sigma_est))
-        c <- 1 / (length(r) * b)
+        #c <- 1 / (length(r) * b) # absorbed by mean
         sigma_new <- sigma_est * sqrt(mean(rho_vec) / b)
 
         if (abs(sigma_new / sigma_est - 1) < eps) {
