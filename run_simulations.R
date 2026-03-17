@@ -49,12 +49,12 @@ if (!file.exists(gross_outlier_outpath)) {
 }
 
 
-breakdown_outpath <- "data/breakdown.csv"
+breakdown_outpath <- "data/breakdown_200.csv"
 if (!file.exists(breakdown_outpath)) {
     cat("Starting breakdown simulation...\n")
     future_map(
         seq_len(1500),
-        \(rep_i) map(c(0.2, 0.45, 0.49, 0.51, 0.55), \(c_p) {
+        \(rep_i) map(c(0.2, 0.45, 0.49, 0.5, 0.51, 0.55), \(c_p) {
             sim <- gross_outlier_sim(N_pts = 200, small_var = 1, big_mean = 10000, big_var = 1, contamination_proportion = c_p)
             tibble(rep = rep_i, N_pts = 200, slope_mm = sim$bisquare_slope, slope_ols = sim$ols_slope, intercept_mm = sim$bisquare_int, intercept_ols = sim$ols_int, cp = c_p)
         }) %>% list_rbind(),

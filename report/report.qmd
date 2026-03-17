@@ -23,7 +23,13 @@ toc: true
 toc-depth: 2
 number-sections: true
 fontsize: 11pt
-
+author: 
+    - "Adnan Akther (C23125434)"
+    - "Ioan Barber (C23040485)"
+    - "Anthony Lawrence (C23125134)"
+    - "Llŷr Davies (C21077567)"
+    - "Carwyn Hardiman (C23009849)"
+    - "Ashley Woollard (C23065527)"
 format:
     pdf:
         colorlinks: true
@@ -188,17 +194,21 @@ MM-estimators were introduced by @10.1214/aos/1176350366 and work on a two-step 
 
 Let $p$ denote the number of predictors in a regression problem. Computing an S-estimator is computationally challenging, but there are viable approximations for $p$ small. We have implemented the *Fast-S* algorithm from @Salibian-Barrera01062006, which works well for small or moderate values of $p$. The algorithm works by taking a number of random subsamples of the data and computing S-estimates on these subsamples, and then picking the "best" candidate for the scale. It can be shown the number of subsamples required to return an S-estimator with $\epsilon$ breakdown point with probability $1-\alpha$ is 
 
-$$N_{\text{sub}}\geq\frac{\log(\alpha)}{\log(1-(1-\epsilon)^p)}.$${#eq-subsample-lbound}
+$$N_{\text{sub}}\geq\frac{\log(\alpha)}{\log(1-(1-\epsilon)^p)}. $$ {#eq-subsample-lbound}
 
 Taking $\alpha=0.01$, $\epsilon=0.5$ and $p=2$ for a slope and intercept term, the algorithm requires at least 17 subsamples of the data. @eq-subsample-lbound also shows that the number of subsamples scales exponentially in $p$. One potential concern with *Fast-S* is that it's non-deterministic and multiple re-runs will produce slightly different initial estimates. However, in practice the subsequent M-estimation still converges to a very similar final estimate in the end. Deterministic approaches such as @Peña01061999 can perform much better than *Fast-S* for large $p$, although in R libraries *Fast-S* is the more popular choice as an initial estimate for MM-estimation.
 
 # Simulation study {#sec-simulation}
 
-In this section we carry out simulations to compare the MM-estimator to ordinary least squares (OLS) on synthetic data. We aim to provide strong evidence that the proposed regression estimator has many desirable statistical properties. Simulations were carried out using the `furrr` package (@furrr), and regression lines were fit for $N=50, 200$ and $500$ with $10,000$ repetitions. Note that for results formatted as ratios, the OLS estimate is taken as the numerator. For simplicity, the following section deals with the estimate of the slope only.
+In this section we carry out simulations to compare the MM-estimator to ordinary least squares (OLS) on synthetic data. We aim to provide strong evidence that the proposed regression estimator has many desirable statistical properties. Simulations were carried out using the `furrr` package (@furrr), and regression lines were fit for $N=50, 200$ and $500$ with $10,000$ repetitions. Simulations start with data from 
 
-## Normal efficiency simulation
+$$ y=x+\epsilon \quad \text{where} \quad \epsilon\sim\mathcal{N}(0,1) $$ {#eq-line-and-small-gaussian-noise}
 
-Although MM-estimators were designed to deal with outliers and non-normal errors, it's also important to check they perform well in the case where the data has only irreducible noise. We take $y=x+\epsilon$ with $\epsilon\sim\mathcal{N}(0,1)$. The results can be found in @tbl-normal-eff. We see that the efficiency of 95% relative to OLS agrees with the value of $k=4.68$ used in the Bisquare M-estimator. Furthmore, the results show strong evidence that the M-estimator is consistent from the reduction of MSE as $N$ increases.
+and add additional noise as needed. Note that for results formatted as ratios, the OLS estimate is taken as the numerator. Unless stated otherwise, the following sections mostly deal with the estimate of the slope and discussion of the intercept term can be found in the appendix.
+
+## Normal efficiency simulation {#sec-normal-eff-sim}
+
+Although MM-estimators were designed to deal with outliers and non-normal errors, it's also important to check they perform well in the case where the data has only irreducible normal noise. For this we take samples from @eq-line-and-small-gaussian-noise only. The results can be found in @tbl-normal-eff. We see that the efficiency of 95% relative to OLS agrees with the value of $k=4.68$ used in the Bisquare M-estimator. Furthmore, the results show strong evidence that the M-estimator is consistent from the reduction of MSE as $N$ increases. We deal with adding noise to the observations in the following subsections.
 
 ```{r}
 #| label: tbl-normal-eff
@@ -207,6 +217,10 @@ Although MM-estimators were designed to deal with outliers and non-normal errors
 
 mse <- function(x, x_hat) {
     mean((x - x_hat)^2)
+}
+
+rmse <- function(x, x_hat) {
+    sqrt(mse(x, x_hat))
 }
 
 # switching to a long format df can work too, but for only a few cols we prefer this
@@ -229,7 +243,7 @@ df %>%
             "$\\text{MSE}(\\hat{\\beta}_{\\text{OLS}})$",
             "$\\text{MSE}(\\hat{\\beta}_{\\text{MM}})$",
             "$\\operatorname{Var}({\\hat{\\beta}_{\\text{OLS}}})$",
-            "$\\operatorname{Var}({\\hat{\\beta}_{\\text{MSE}}})$",
+            "$\\operatorname{Var}({\\hat{\\beta}_{\\text{MM}}})$",
             "Efficiency",
             "MSE ratio"
         ),
@@ -240,7 +254,9 @@ df %>%
     kable_styling(latex_options = c("hold_position"))
 ```
 
-## Gross outlier contamination simulation
+## Gross outlier contamination simulation {#sec-g-outlier-sim}
+
+Next we simulate the MM-estimator again with more more realistic noise. Starting with @eq-line-and-small-gaussian-noise again, 40% of the data points have $\mathcal{N}(0, 10)$ noise added. MM and OLS estimates are fitted and results are shown in @tbl-gross-outlier-mse. In this situation we see that the MM-estimator is an order of magnitude more efficient and less variable compared to OLS, although OLS does not fully breakdown.
 
 ```{r}
 #| label: tbl-gross-outlier-mse
@@ -267,7 +283,7 @@ df %>%
             "$\\text{MSE}(\\hat{\\beta}_{\\text{OLS}})$",
             "$\\text{MSE}(\\hat{\\beta}_{\\text{MM}})$",
             "$\\operatorname{Var}({\\hat{\\beta}_{\\text{OLS}}})$",
-            "$\\operatorname{Var}({\\hat{\\beta}_{\\text{MSE}}})$",
+            "$\\operatorname{Var}({\\hat{\\beta}_{\\text{MM}}})$",
             "Efficiency",
             "MSE ratio"
         ),
@@ -277,6 +293,74 @@ df %>%
     ) %>%
     kable_styling(latex_options = c("hold_position"))
 ```
+
+## Breakdown point simulation {#sec-breakdown-sim}
+
+Now wish to verify the breakdown point of the MM-estimator, which is roughly 50%. In this simulation we start from $\epsilon\sim\mathcal{N}(0,1)$ once again and we set an increasing proportion of points to 10,000. This sets up two competing lines, namely $y = 10000$ and @eq-line-and-small-gaussian-noise. We fix $N=200$ and $1500$ replications at contamination proportions of $\epsilon=0.2, 0.45, 0.49, 0.5, 0.51$ and $0.55$. The results can be found in @fig-breakdown-line-graph and @tbl-breakdown-slope, along with discussion of the intercept term in @tbl-breakdown-intercept-appendix. The most striking feature of the figure is the spike near $\epsilon=0.5$ and the RMSE then decreasing back to one - which is actually the error when the model fits only to the $y=10000$ line. The highest RMSE represents the point when the MM-estimator can't distinguish the contamination from the original line, but for $\epsilon$ bigger than 0.5 the $y=10000$ the MM-estimator exclusively passes through contaminated points. A similar story is true for the intercept of the MM-estimator (lower panel), that it degrades slowly until half the points are contaminated. On the other hand, in both cases OLS performs badly even under $\epsilon=0.2$, and it degrades at a constant rate. In @tbl-breakdown-slope we see that the variance also behaves similar to the RMSE for the MM-estimator, being highest when noise and real data have equal proportions and then decreasing when noise is more frequent than real data. An interesting finding is that this does not occur for the bias of the slope, however for this type of noise a bias near 1 still shows breakdown of the estimator.
+
+
+```{r}
+#| label: fig-breakdown-line-graph
+#| fig-cap: Line graph of RMSE (y) against $\epsilon$ proportion of outliers. MSE could be used instead for the y-axis, but RMSE makes for easier interpretation. Note the gradual worsening of OLS and the sudden increase of RMSE for MM near $\epsilon=0.5$, verifying the breakdown point.
+
+df <- read.csv("../data/breakdown_200.csv")
+
+slope_breakdown <- df %>% group_by(cp) %>% 
+    summarise(rmse_mm = rmse(slope_mm, 1), rmse_ols = rmse(slope_ols, 1)) %>%
+    ggplot(aes(x = cp)) + 
+        geom_line(aes(y = rmse_mm), color = "red") +
+        geom_line(aes(y = rmse_ols), color = "blue") +
+        labs(x = NULL, title = "RMSE breakdown of slope estimate", y = TeX("RMSE($\\hat{\\beta}_{MM}$)")) +
+        theme(axis.text.x=element_blank()) +
+        theme_minimal() 
+
+intercept_breakdown <- df %>% group_by(cp) %>% 
+    summarise(rmse_mm = rmse(intercept_mm, 1), rmse_ols = rmse(intercept_ols, 1)) %>%
+    ggplot(aes(x = cp)) + 
+        geom_line(aes(y = rmse_mm), color = "red") +
+        geom_line(aes(y = rmse_ols), color = "blue") +
+        labs(title = "RMSE breakdown of intercept estimate", x = TeX("$\\epsilon$"), y = TeX("RMSE($\\hat{\\beta}_{MM}$)")) +
+        theme_minimal()
+
+slope_breakdown / intercept_breakdown
+
+```
+
+```{r}
+#| label: tbl-breakdown-slope
+#| tbl-cap: s
+
+df %>%
+    group_by(cp) %>%
+    summarise(
+        OLS_rmse = rmse(slope_ols, 1),
+        MM_rmse = rmse(slope_mm, 1),
+        OLS_var = var(slope_ols),
+        MM_var = var(slope_mm),
+        OLS_bias = mean(slope_ols) - 1,
+        MM_bias = mean(slope_mm) - 1
+    ) %>%
+    mutate() %>%
+    kbl(
+        col.names = c(
+            "$\\epsilon$",
+            "$\\text{RMSE}(\\hat{\\beta}_{\\text{OLS}})$",
+            "$\\text{RMSE}(\\hat{\\beta}_{\\text{MM}})$",
+            "$\\operatorname{Var}({\\hat{\\beta}_{\\text{OLS}}})$",
+            "$\\operatorname{Var}({\\hat{\\beta}_{\\text{MM}}})$",
+            "$\\text{Bias}({\\hat{\\beta}_{\\text{OLS}}})$",
+            "$\\text{Bias}({\\hat{\\beta}_{\\text{MM}}})$"
+        ),
+        format = "latex",
+        booktabs = TRUE,
+        escape = FALSE,
+    ) %>%
+    kable_styling(latex_options = c("hold_position"))
+
+
+```
+
+## Agreement with MASS
 
 
 # References 
@@ -392,14 +476,15 @@ df %>%
 
 ## Normal distribution of MM-estimator slopes
 
-First we check a histogram and QQplot of the MM-estimator slopes in @fig-slope-histogram-appendix. Visually it appears the slopes follow an approximately normal distribution. Then in @tbl-mm-ad-test-appendix we see the null hypothesis is rejected only for $N=50$, which can be attributed to it being a small sample.
+First we check a histogram and QQplot of the MM-estimator slopes in @fig-slope-histogram-appendix. Visually it appears the slopes follow an approximately normal distribution. Then in @tbl-mm-ad-test-appendix we see the p-value is less than 0.05 only for $N=50$, which can be attributed to small sample size.
 
 ```{r}
 #| label: fig-slope-histogram-appendix
-#| fig-cap: Histogram of slopes (above) and QQplot (below) of MM-estimator simulated in @sec-simulation for the $N=500$ case.
+#| fig-cap: Histogram of slopes (above) and QQplot (below) of MM-estimator simulated in @sec-normal-eff-sim for the $N=500$ case.
 #| fig-width: 6
 #| fig-height: 3
 
+df <- read.csv("../data/normal_efficiency.csv")
 
 hist <- df %>%
     filter(N_pts == 500) %>%
@@ -434,3 +519,44 @@ df %>% group_by(N_pts) %>%
     ) %>%
     kable_styling(latex_options = c("hold_position"))
 ```
+
+## Breakdown of the intercept
+
+We show an analogue of @tbl-breakdown-slope but for the intercept instead of the slope estimate in @tbl-breakdown-intercept-appendix. We don't see a decrease of any metric after the breakdown point, although this is due to the choice of contamination being $y=10000$. It seems that the breakdown of the intercept occurs earlier than that for the slope, results could be simulated over more values of $N$ and $\epsilon$ with different contamination types to verify this further. 
+
+```{r}
+#| label: tbl-breakdown-intercept-appendix
+#| tbl-cap: Similar to @tbl-breakdown-slope, but for the intercept term this time.
+
+df <- read.csv("../data/breakdown_200.csv")
+
+df %>%
+    group_by(cp) %>%
+    summarise(
+        OLS_rmse = rmse(intercept_ols, 1),
+        MM_rmse = rmse(intercept_mm, 1),
+        OLS_var = var(intercept_ols),
+        MM_var = var(intercept_mm),
+        OLS_bias = mean(intercept_ols) - 1,
+        MM_bias = mean(intercept_mm) - 1
+    ) %>%
+    mutate() %>%
+    kbl(
+        col.names = c(
+            "$\\epsilon$",
+            "$\\text{RMSE}(\\hat{\\beta}_{\\text{OLS}})$",
+            "$\\text{RMSE}(\\hat{\\beta}_{\\text{MM}})$",
+            "$\\operatorname{Var}({\\hat{\\beta}_{\\text{OLS}}})$",
+            "$\\operatorname{Var}({\\hat{\\beta}_{\\text{MM}}})$",
+            "$\\text{Bias}({\\hat{\\beta}_{\\text{OLS}}})$",
+            "$\\text{Bias}({\\hat{\\beta}_{\\text{MM}}})$"
+        ),
+        format = "latex",
+        booktabs = TRUE,
+        escape = FALSE,
+    ) %>%
+    kable_styling(latex_options = c("hold_position"))
+
+
+```
+
