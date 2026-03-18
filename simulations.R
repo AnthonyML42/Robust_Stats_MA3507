@@ -23,7 +23,7 @@ normal_efficiency_sim <- function(N_pts, small_var = 1, estimator = "MM", initia
 
     bi_fit <- IRWLS_fit_simple(x_vals, y_vals, initial_est = initial_estimator, weight_fn = weight_fn)
     ols_fit <- lm(y_vals ~ x_vals)
-    #mass_fit <- rlm(y_vals ~ x_vals, method= "MM", psi = psi.bisquare)
+    # mass_fit <- rlm(y_vals ~ x_vals, method= "MM", psi = psi.bisquare)
 
     # return the slope [2], [1] would be the intercept
     list(
@@ -74,5 +74,30 @@ gross_outlier_sim <- function(N_pts, small_var = 1, big_mean = 0, big_var = 100,
         ols_slope      = coef(ols_fit)[2],
         bisquare_int   = coef(bi_fit)[1],
         ols_int        = coef(ols_fit)[1]
+    )
+}
+
+MASS_agreement_sim <- function(N_pts, small_var = 1) {
+    # Currently only working for MM Bisquare, need case statements to check others
+    stopifnot(N_pts > 0, small_var > 0)
+
+    weight_fn <- function(x) bisquare_weight(x, k = 4.68)
+    initial_estimator <- "S"
+
+    # Generate evenly-spaced x values, then y=x+N(0, small_var) and fit OLS vs MM-estimator
+    x_vals <- seq(1, N_pts)
+
+    small_noise <- rnorm(n = N_pts, mean = 0, sd = sqrt(small_var))
+    y_vals <- 1 * x_vals + small_noise
+
+    bi_fit <- IRWLS_fit_simple(x_vals, y_vals, initial_est = initial_estimator, weight_fn = weight_fn)
+    mass_fit <- rlm(y_vals ~ x_vals, method = "MM", psi = psi.bisquare)
+
+    # return the slope [2], [1] would be the intercept
+    list(
+        bisquare_slope = coef(bi_fit)[2],
+        mass_slope = coef(mass_fit)[2],
+        bisquare_int = coef(bi_fit)[1],
+        mass_int = coef(mass_fit)[1]
     )
 }

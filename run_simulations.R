@@ -66,4 +66,23 @@ if (!file.exists(breakdown_outpath)) {
 } else {
     cat("Breakdown file found. Skipping...\n")
 }
+
+mass_agreement_outpath <- "data/mass_agreement.csv"
+if (!file.exists(mass_agreement_outpath)) {
+    cat("MASS simulation...\n")
+    future_map(
+        seq_len(10000),
+        \(rep_i) map(c(50, 200, 500), \(n) {
+            sim <- MASS_agreement_sim(N_pts = n, small_var = 1)
+            tibble(rep = rep_i, N_pts = n, slope_mm = sim$bisquare_slope, slope_mass = sim$mass_slope, intercept_mm = sim$bisquare_int, intercept_mass = sim$mass_int)
+        }) %>% list_rbind(),
+        .options = furrr_options(seed = 0),
+        .progress = TRUE
+    ) %>%
+        list_rbind() %>%
+        write_csv(mass_agreement_outpath)
+} else {
+    cat("MASS file found. Skipping...\n")
+}
+
 plan(sequential)

@@ -87,7 +87,7 @@ s_scale_iteration <- function(r, start_val = madn(r), rho_fn, max_iter = 1000, e
     b <- 0.5
     for (i in 1:max_iter) {
         rho_vec <- as.vector(rho_fn(r / sigma_est))
-        #c <- 1 / (length(r) * b) # absorbed by mean
+        # c <- 1 / (length(r) * b) # absorbed by mean
         sigma_new <- sigma_est * sqrt(mean(rho_vec) / b)
 
         if (abs(sigma_new / sigma_est - 1) < eps) {
@@ -109,7 +109,7 @@ fast_s_estimator <- function(x, y, alpha = 0.01, p = 2, max_iter = 1500, eps = 1
     stopifnot(length(x) == length(y))
 
     # take the maximum breakdown epsilon=0.5 here, not to be confused with the convergence parameter "eps"
-    N_subsample <- ceiling(log(alpha) / log(1-(1-0.5)^p))
+    N_subsample <- ceiling(log(alpha) / log(1 - (1 - 0.5)^p))
 
     rho_fn <- function(x) bisquare_rho(x, k = 1.547)
     weight_fn <- function(x) bisquare_weight(x, k = 1.547)
