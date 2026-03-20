@@ -56,3 +56,5 @@ data/normal_efficiency.csv
 data/gross_outlier*
 data/breakdown*
 data/mass_*
+
+report/_extensions

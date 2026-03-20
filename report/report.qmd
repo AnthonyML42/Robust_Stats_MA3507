@@ -3,7 +3,6 @@ title: "Outlier Detection and Robust Linear Regression"
 pdf-engine: xelatex
 documentclass: article
 date: today
-date-format: "MMMM YYYY"
 fig-pos: "H"
 geometry: margin=1in
 execute:
@@ -41,13 +40,13 @@ format:
                 \usepackage{algpseudocode}
                 \newcommand{\Break}{\State \textbf{break}}
 abstract: |
-  Test
+    This report explores how traditional statistical models respond to outliers and assesses how well robust linear regression methods can handle them. Our main focus is on the MM-estimator, which is a method that uses a two-step approach combining the high breakdown point of an S-estimator with the high efficiency of an M-estimator. Simulations are conducted to verify statistical properties of the MM-estimator, which can be used as a robust alternative to OLS.
 ---
 
 # Introduction
 
 Outliers, for a long time, have been an important topic of discussion amongst data practitioners and statisticians - they constantly alter analysis and can cause undesirable or even false results. This is an extremely prevalent issue in areas that typically work on smaller data sets, such as clinical trials. For example, take @Cordero2025, which uses robust methods due to a small sample size. In this report we will discuss what is in outlier and some of the numerous methods to tackle them. Understanding and dealing with outliers first starts with rules of thumb, these approaches lack standardisation since they are created by individuals and are simply agreed upon as a viable approach by other data practitioners. This raises some clear issues, methods to avoid such lack of clarity have been developed for decades and many have had success. 
-One of these methods is the M-estimator, this is a method that approximates the model of a data set with as little influence from outliers as possible. However, there are limitations with efficiency and a point where outliers become too much, even for such a method to handle. Another similar method is the Theil-Sen estimator, it takes a different approach to avoid outliers and, when used alone, it is more resistent to outliers than the M-estimator. However, we found that the Theil-Sen estimator doesn’t scale well with multiple predictors nor does it have the same theoretical guarantees as other methods. To get started, in the first section we jump into simple methods which have been tried and tested whilst long awaiting improvement. 
+One of these methods is the M-estimator, this is a method that approximates the model of a data set with as little influence from outliers as possible. However, there are limitations with efficiency and a point where outliers become too much, even for such a method to handle. Another similar method is the Theil-Sen estimator (@Theil1992), it takes a different approach to avoid outliers and, when used alone, it is more resistent to outliers than the M-estimator. However, we found that the Theil-Sen estimator doesn’t scale well with multiple predictors nor does it have the same theoretical guarantees as other methods. To get started, in the first section we jump into simple methods which have been tried and tested whilst long awaiting improvement. For more discussion around Theil-Sen, see @sec-theil-sen.
 
 # Simple Outlier Detection and Preliminaries
 
@@ -67,17 +66,19 @@ $$
 $$ {#eq-robust-3-sigma}
 
 
-The drawbacks of using the median or MADN instead of the mean and standard deviation are found a loss of statistical efficiency. The inefficiency of MAD becomes an issue when dealing with data that has no outliers and we therefore are reducing efficiency for little to no gain in accuracy or precision. However, there are other, more popular, outlier detection methods.
+The drawbacks of using the median and MADN instead of the mean and standard deviation are found a loss of statistical efficiency. The inefficiency of MAD becomes an issue when dealing with data that has no outliers and we therefore are reducing efficiency for little to no gain in accuracy or precision. However, there are other more popular outlier detection methods.
 
-The final method we will discuss is the utilising OLS (Ordinary Least Squares) to uncover influential observations, we will be talking about bivariate data from here on. This is done by finding the line that best fits the data and then seeing which observations have high leverage and large residual. A point of high leverage is one that sits near an edge of the majority of data, meaning we are only concerned for the x value when looking at leverage. To understand when to call a point influential or not we must also discuss residuals of observations, the residual of an observation is simply the distance of the y value, given by the observation, from the predicted value of the fitted model. When an observation has enough leverage and a high residual it is then called influential. The ultimate decision of an observation being significantly influential is still left up to the data practitioner, @Cook_1977 came up with a way to combine the leverage with the residual of an observation in attempt to quantify how influential any observation is. The Cook's distance formula is shown in @eq-cooks-distance-formula, with $h_ii$ being diagonal elements of the "hat matrix"^[Sometimes the $h_{ii}$ are called leverages]. When used, Cook's distance is alongside a chosen rule of thumb to characterise a point as influential, one rule of thumb is comparing the Cook’s distance of observations to the F distribution with $D_i > F_{p, n-p}(0.5)$ means that observation is highly influential, even values of $D_i > F_{p, n-p}(0.2)$ are typically investigated. 
+## OLS for outlier detection and Cook's distance
+
+The final method we will discuss is utilising OLS (Ordinary Least Squares) to uncover influential observations, we will be talking about bivariate data from here on. This is done by finding the line that best fits the data and then seeing which observations have high leverage and large residual. A point of high leverage is one that sits near an edge of the majority of data, meaning we are only concerned for the x value when looking at leverage. To understand when to call a point influential or not we must also discuss residuals of observations, the residual of an observation is simply the distance of the y value, given by the observation, from the predicted value of the fitted model. When an observation has enough leverage and a high residual it is then called influential. The ultimate decision of an observation being significantly influential is still left up to the data practitioner, @Cook_1977 came up with a way to combine the leverage with the residual of an observation in attempt to quantify how influential any observation is. The Cook's distance formula is shown in @eq-cooks-distance-formula, with $h_ii$ being diagonal elements of the "hat matrix"^[Sometimes the $h_{ii}$ are called leverages]. When used, Cook's distance is alongside a chosen rule of thumb to characterise a point as influential, one rule of thumb is comparing the Cook’s distance of observations to the F distribution with $D_i > F_{p, n-p}(0.5)$ means that observation is highly influential, even values of $D_i > F_{p, n-p}(0.2)$ are typically investigated. 
 $$ 
 \frac{1}{p+1}\left(\frac{h_{ii}}{1-{h_{ii}}}\right)r_i^2
 $$ {#eq-cooks-distance-formula}
 
 Another such rule of thumb is if $D_i > (4/(n - p - 1))$ then the observation is of significant influence, with n being the number of points and p being the number of observations. Similarly to before, what follows is a decision on whether the observation should be kept as is, brought within an 'acceptable' range or deleted from the data sample/set. However, there is debate whether Cook's distance accurately represents outliers, for example in @Kim2017.
 
-A recurring issue with these outlier detection methods that we have covered is that they require human input on what results flag an observation as an outlier. This lack of systemic practice creates valid scrutiny for these methods, and as such we want a way to avoid the impact of these outliers without human intervention and taking assumptions which require in-depth understanding of the data collection. One strong set of methods with extensive theoretical backing is M-estimators @alma9911772489302420[p. 22]
-which generalises OLS and allows for control, via a parameter, over the robustness of the estimator. However, increasing the robustness has a trade-off of decreasing the efficiency under normal errors. Including M-estimators, regression estimators have a property called breakdown points detailing what the largest proportion of contamination the data can have before guaranteeing the estimation to be totally uninformative. Intuitively, the breakdown point of an estimator can't be higher than 50% - if more than half of data is noise then the estimator will be unable to create an uncontaminated model. In the next section, we will start with M-estimators to explore novel methods for data analysis of contaminated data whilst considering the cost of efficiency if the data were clean.
+A recurring issue with these outlier detection methods that we have covered is that they require human input on what results flag an observation as an outlier. This lack of systemic practice creates valid scrutiny for these methods, and as such we want a way to avoid the impact of these outliers without human intervention and taking assumptions which require in-depth understanding of the data collection. One strong set of methods with extensive theoretical backing is M-estimation @alma9911772489302420[p. 22]
+which generalises OLS and allows for control, via a parameter, over the robustness of the estimator. However, increasing the robustness has a trade-off of decreasing the efficiency under normal errors. Including M-estimators, regression estimators have a property called breakdown points detailing what the largest proportion of contamination the data can have before guaranteeing the estimation to be totally uninformative. Intuitively, the breakdown point of an estimator can't be higher than 50% - if more than half of data is noise then the estimator will be unable to create an uncontaminated model. In the next section, we will start with M-estimators to explore novel methods for data analysis of contaminated data whilst considering the cost of efficiency if the data were clean. For discussion of other methods to detect outliers, see `EllipticEnvelope` from @scikit-learn and @alma9911772489302420[p.207-210]
 
 # M-Estimators {#sec-m-estimators}
 
@@ -150,7 +151,7 @@ $$
 
 Since many quantities depend on one another, the estimation procedure is iterative. The residuals depend on the estimate of $\beta$, the weights $w_i$ depend on the residuals through the $\psi$ function, and the updated estimate of $\beta$ depends on the weights.
 
-Typically, the estimation is performed using iteratively reweighted least squares (IRLS). We start from an initial estimate of $\beta$, compute the residuals, determine the weights from the $\psi$ function, and then compute a weighted least squares fit. This procedure is repeated until convergence. More discussion can be found in @alma9911772489302420[p. 104].
+Typically, the estimation is performed using iteratively reweighted least squares (IRLS), see the I-step algorithm in @sec-algos for more information. We start from an initial estimate of $\beta$, compute the residuals, determine the weights from the $\psi$ function, and then compute a weighted least squares fit. This procedure is repeated until convergence. More discussion can be found in @alma9911772489302420[p. 104].
 
 A scale estimate $s$ is used to standardise the objective function. The scale can either be fixed or estimated jointly with the regression parameters. It is important that $s$ is robust, since a non-robust scale could become very large when outliers are present. In that case the standardised residuals $\frac{r_i(\beta)}{s}$ become artificially small and the weighting mechanism no longer reduces the influence of extreme observations.
 
@@ -261,20 +262,20 @@ and other quantities defined as in @sec-m-estimators. Although the formula is ve
 
 $$ \epsilon = \min(1-\delta, \delta) $$
 
-which has a maximum at 0.5. Once this is chosen, it must satisfy 
+which has a maximum at $\delta = 0.5$. Once this is chosen, it must satisfy the normalisation condition
 $$\mathbb{E}\left[\rho_k\left(\frac{x}{s}\right)\right]=\delta \quad \text{with} \quad x\sim\mathcal{N}(0,1)$$
 
 so that under standard normal errors we get a scale estimate of 1. More discussion can be found in @alma9911772489302420[p. 34, 60] This constraint also determines $k$ for the S-estimator, which sets the efficiency^[For the Bisquare M-estimator defined in @sec-m-estimators, choosing $\delta=0.5$ here leads to $k=1.56$]. However despite this high breakdown point, it can be shown that S-estimators with smooth $\rho$ under normal errors can't have an efficiency higher than 0.33, see @alma9911772489302420[p. 125-126] for more information. In @sec-mm-and-fast-s we will resolve this with a procedure that is able to combine the high breakdown point of the S-estimator with the high efficiency of an M-estimator under normal errors.
 
 # Regression MM-Estimators and Fast-S {#sec-mm-and-fast-s}
 
-MM-estimators were introduced by @10.1214/aos/1176350366 and work on a two-step process of starting with an S-estimator to robustly estimate scale, followed by M-estimation with fixed scale coming from the previous step. The S-estimator also provides a starting point for estimating $\beta$ in the second step. They are able to inherit the high breakdown point of the S-estimator, while also keeping the high normal efficiency of an M-estimator. The M-estimation step follows @eq-m-estimator-minimiser as in the previous section.
+MM-estimators were introduced by @10.1214/aos/1176350366 and work on a two-step process of starting with an S-estimator to robustly estimate scale, followed by M-estimation with fixed scale coming from the previous step. The S-estimator also provides a starting point for estimating $\beta$ in the second step. MM-estimators are able to inherit the high breakdown point of the S-estimator^[provided $k$>$k_0$, where k is the $k$ parameter from the regression M-estimator, and $k_0$ is from the S-estimator], while also keeping the high normal efficiency of an M-estimator. The M-estimation step follows @eq-m-estimator-minimiser as in the previous section.
 
 Let $p$ denote the number of predictors in a regression problem. Computing an S-estimator is computationally challenging, but there are viable approximations for $p$ small. We have implemented the *Fast-S* algorithm from @Salibian-Barrera01062006, which works well for small or moderate values of $p$. The algorithm works by taking a number of random subsamples of the data and computing S-estimates on these subsamples, and then picking the "best" candidate for the scale. It can be shown the number of subsamples required to return an S-estimator with $\epsilon$ breakdown point with probability $1-\alpha$ is 
 
 $$N_{\text{sub}}\geq\frac{\log(\alpha)}{\log(1-(1-\epsilon)^p)}. $$ {#eq-subsample-lbound}
 
-Taking $\alpha=0.01$, $\epsilon=0.5$ and $p=2$ for a slope and intercept term, the algorithm requires at least 17 subsamples of the data. @eq-subsample-lbound also shows that the number of subsamples scales exponentially in $p$. One potential concern with *Fast-S* is that it's non-deterministic and multiple re-runs will produce slightly different initial estimates. However, in practice the subsequent M-estimation still converges to a very similar final estimate in the end. Deterministic approaches such as @Peña01061999 can perform much better than *Fast-S* for large $p$, although in R libraries *Fast-S* is the more popular choice as an initial estimate for MM-estimation.
+Taking $\alpha=0.01$, $\epsilon=0.5$ and $p=2$ for a slope and intercept term, the algorithm requires at least 17 subsamples of the data. @eq-subsample-lbound also shows that the number of subsamples scales exponentially in $p$. For the full pseudocode, see @sec-algos. One potential concern with *Fast-S* is that it's non-deterministic and multiple re-runs will produce slightly different initial estimates. However, in practice the subsequent M-estimation still converges to a very similar final estimate in the end. Deterministic approaches such as @Peña01061999 (P-Y) can perform much better than *Fast-S* for large $p$, although in R libraries *Fast-S* is the more popular choice as an initial estimate for MM-estimation.
 
 # Simulation study {#sec-simulation}
 
@@ -286,7 +287,7 @@ and add additional noise as needed. Note that for results formatted as ratios, t
 
 ## Normal efficiency simulation {#sec-normal-eff-sim}
 
-Although MM-estimators were designed to deal with outliers and non-normal errors, it's also important to check they perform well in the case where the data has only irreducible normal noise. For this we take samples from @eq-line-and-small-gaussian-noise only. The results can be found in @tbl-normal-eff. We see that the efficiency of 95% relative to OLS agrees with the value of $k=4.68$ used in the Bisquare M-estimator. Furthmore, the results show strong evidence that the M-estimator is consistent from the reduction of MSE as $N$ increases. We deal with adding noise to the observations in the following subsections.
+Although MM-estimators were designed to deal with outliers and non-normal errors, it's also important to check they perform well in the case where the data has only irreducible normal noise. For this we take samples from @eq-line-and-small-gaussian-noise only. The results can be found in @tbl-normal-eff. We see that the efficiency of 95% relative to OLS agrees with the value of $k=4.68$ used in the Bisquare M-estimator. We also verify the normal distribution of the slopes in @sec-m-est-normal-dist. Furthmore, the results show strong evidence that the M-estimator is consistent from the reduction of MSE as $N$ increases. We deal with adding noise to the observations in the following subsections.
 
 ```{r}
 #| label: tbl-normal-eff
@@ -374,7 +375,7 @@ df %>%
 
 ## Breakdown point simulation {#sec-breakdown-sim}
 
-Now we seek to verify the breakdown point of the MM-estimator constructed in @sec-mm-and-fast-s, which is roughly 50%. In this simulation we start from @eq-line-and-small-gaussian-noise once again and we set an increasing proportion of points to 10,000. This sets up two competing lines, namely $y = 10000$ and @eq-line-and-small-gaussian-noise. We fix $N=200$ and $1500$ replications at contamination proportions of $\epsilon=0.2, 0.45, 0.49, 0.5, 0.51$ and $0.55$. The results can be found in @fig-breakdown-line-graph and @tbl-breakdown-slope, along with discussion of the intercept term in @tbl-breakdown-intercept-appendix. The most striking feature of the figure is the spike near $\epsilon=0.5$ and the RMSE then decreasing back to one - which is actually the error when the model fits only to the $y=10000$ line. The highest RMSE represents the point when the MM-estimator can't distinguish the contamination from the original line, but for $\epsilon$ bigger than 0.5 the $y=10000$ the MM-estimator exclusively passes through contaminated points. A similar story is true for the intercept of the MM-estimator (lower panel), that it degrades slowly until half the points are contaminated. On the other hand, in both cases OLS performs badly even under $\epsilon=0.2$, and it degrades at a constant rate. In @tbl-breakdown-slope we see that the variance also behaves similar to the RMSE for the MM-estimator, being highest when noise and real data have equal proportions and then decreasing when noise is more frequent than real data. An interesting finding is that this does not occur for the bias of the slope, however for this type of noise a bias near 1 still shows breakdown of the estimator.
+Now we seek to verify the breakdown point of the MM-estimator constructed in @sec-mm-and-fast-s, which is roughly 50%. In this simulation we start from @eq-line-and-small-gaussian-noise once again and we set an increasing proportion of points to $y=10,000$. This sets up two competing lines, namely $y = 10000$ and @eq-line-and-small-gaussian-noise. We fix $N=200$ and $1500$ replications at contamination proportions of $\epsilon=0.2, 0.45, 0.49, 0.5, 0.51$ and $0.55$. The results can be found in @fig-breakdown-line-graph and @tbl-breakdown-slope, along with discussion of the intercept term in @tbl-breakdown-intercept-appendix. The most striking feature of the figure is the spike near $\epsilon=0.5$ and the RMSE then decreasing back to one - which is actually the error when the model fits only to the $y=10000$ line. The highest RMSE represents the point when the MM-estimator can't distinguish the contamination from the original line, but for $\epsilon$ bigger than 0.5 the $y=10000$ the MM-estimator exclusively passes through contaminated points. A similar story is true for the intercept of the MM-estimator (lower panel), that it degrades slowly until half the points are contaminated. On the other hand, in both cases OLS performs badly even under $\epsilon=0.2$, and it degrades at a constant rate. In @tbl-breakdown-slope we see that the variance also behaves similar to the RMSE for the MM-estimator, being highest when noise and real data have equal proportions and then decreasing when noise is more frequent than real data. An interesting finding is that this does not occur for the bias of the slope, however for this type of noise a bias near 1 still shows breakdown of the estimator.
 
 
 ```{r}
@@ -524,11 +525,31 @@ p2 <- ggplot(plot_df, aes(x = N_pts)) +
     plot_annotation(title = "Agreement between MASS and our MM-estimator by sample size", theme = theme(plot.title = element_text(size = 11)))
 ```
 
+# Conclusion
+
+
+To conclude, by motivating examples from rules-of-thumb and heuristic approaches for outlier detection we introduce M-estimators as a generalisation of MLE and OLS. Next, the theory S and MM-estimators and their robust properties is discussed. This represents a systematic approach to down-weighting outliers which is preferable to removal of data points and other methods without having assumptions about the data. MM-estimators retain many statistical properties of OLS, including consistency and asymptotic normality, while having a breakdown point of 50% and remaining 85-95% efficient relative to OLS under normal errors. Practically, the Fast-S algorithm allows for MM-estimators to be fitted quickly for moderate $p$, and for large $p$ the P-Y initial estimator from @sec-mm-and-fast-s performs very well. Simulations in @sec-simulation verify this further - MM-estimation is a viable robust alternative to OLS. 
+
+The procedure described in @sec-mm-and-fast-s can be used with different $\psi$ functions, and as an initial estimator to further increase efficiency and finite-sample breakdown point, see @alma9911772489302420[p. 155, 159-164]. In higher dimensions, outliers are harder to visualise and account for directly, emphasising the importance of MM-estimators for robust multivariate regression. This is not limited to simple regresion problems, for instance regularisation and time-series analysis are also amenable to robust methods, see @alma9911772489302420[p. 165-171, 293-361].
+
+
+
 # References 
 
 ::: {#refs}
 :::
 
+# Author Contributions
+
+- Conceptualisation: AL, AW, LlD
+- Project administration: AL
+- Software: AL, AW, IB
+- Formal Analysis: AL, IB
+- Validation: AL
+- Visualisation: AL, LlD
+- Writing - original draft: AL, AW, LlD, CH, IB
+- Writing - review and editing: AL, AW, LlD, CH, IB, AA
+- Welsh translation: CH, LlD, IB
 
 # Appendix {.appendix}
 
@@ -639,7 +660,7 @@ p2 <- ggplot(plot_df, aes(x = N_pts)) +
 \end{algorithmic}
 \end{algorithm}
 
-## Normal distribution of MM-estimator slopes
+## Normal distribution of MM-estimator slopes {#sec-m-est-normal-dist}
 
 First we check a histogram and QQplot of the MM-estimator slopes in @fig-slope-histogram-appendix. Visually it appears the slopes follow an approximately normal distribution. Then in @tbl-mm-ad-test-appendix we use an Anderson-Darling (AD) test which fails to reject the null hypothesis of normality. Taking these together there is strong evidence the MM-estimator estimates follow a normal distribution.
 
@@ -749,3 +770,14 @@ Using the idea that the median divides the sample in half, we can obtain
 \Phi^{-1}\left(\frac{3}{4}\right)&=\text{MAD}/ \sigma\\
 \implies \text{MAD} &= \sigma \Phi^{-1}\left(\frac{3}{4}\right) \approx 0.6745 \sigma
 \end{align*}
+
+
+## Theil-Sen estimator {#sec-theil-sen}
+
+The Theil-Sen (TS) linear regression estimator is defined as the median of the slopes
+
+$$
+\underset{\substack{i, j \\ j>i}}{\text{median}}\left(\frac{y_j-y_i}{x_j-x_i}\right)
+$$
+
+and it can be shown this estimator has a breakdown point of $\approx 29.3%$, see @huber_robust_stats[p. 66]. It suffers from low normal efficiency like S-estimators, but does not generalise to higher dimensions. A naïve implementation runs in $\mathcal{O}(n^2)$ time, however the TS formula is very similar to calculation of Kendall's $\tau$, which allows for computation in $\mathcal{O}(n\log n)$ time using Merge Sort (see @tau_nlogn).
