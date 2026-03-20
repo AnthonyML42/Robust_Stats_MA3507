@@ -4,12 +4,6 @@ pdf-engine: xelatex
 documentclass: article
 date: today
 date-format: "MMMM YYYY"
-header-includes:
-    - \usepackage{amsmath}
-    - \usepackage{booktabs}
-    - \usepackage{algorithm}
-    - \usepackage{algpseudocode}
-    - \usepackage{float}
 fig-pos: "H"
 geometry: margin=1in
 execute:
@@ -37,23 +31,61 @@ format:
         linkcolor: blue
         citecolor: blue
         urlcolor: blue
+        include-in-header:
+            text: |
+                \usepackage{amsmath}
+                \usepackage{booktabs}
+                \usepackage{float}
+                \usepackage{unicode-math}
+                \usepackage{algorithm}
+                \usepackage{algpseudocode}
+                \newcommand{\Break}{\State \textbf{break}}
 abstract: |
-    Test
+  Test
 ---
 
 # Introduction
 
-## Test
+Outliers, for a long time, have been an important topic of discussion amongst data practitioners and statisticians - they constantly alter analysis and can cause undesirable or even false results. This is an extremely prevalent issue in areas that typically work on smaller data sets, such as clinical trials. For example, take @Cordero2025, which uses robust methods due to a small sample size. In this report we will discuss what is in outlier and some of the numerous methods to tackle them. Understanding and dealing with outliers first starts with rules of thumb, these approaches lack standardisation since they are created by individuals and are simply agreed upon as a viable approach by other data practitioners. This raises some clear issues, methods to avoid such lack of clarity have been developed for decades and many have had success. 
+One of these methods is the M-estimator, this is a method that approximates the model of a data set with as little influence from outliers as possible. However, there are limitations with efficiency and a point where outliers become too much, even for such a method to handle. Another similar method is the Theil-Sen estimator, it takes a different approach to avoid outliers and, when used alone, it is more resistent to outliers than the M-estimator. However, we found that the Theil-Sen estimator doesn’t scale well with multiple predictors nor does it have the same theoretical guarantees as other methods. To get started, in the first section we jump into simple methods which have been tried and tested whilst long awaiting improvement. 
 
 # Simple Outlier Detection and Preliminaries
 
-# M-Estimators
+When collecting data, either a small or large amount, it is typically found that there are one or multiple ‘abnormal’ observations; we often call these observations outliers due to them not conforming to the majority of the data. However, it would be naïve to just call any observation that does not fall in line with trends to be an outlier or even worse to delete or manipulate it in order to not have to worry about the impact of this abnormal data on analysis methods. In this section, we discuss what should be required to confidently identify outliers in data, how these outliers can affect our statistical analysis, cover what options are available to deal with outliers and briefly cover some methods that can avoid outliers without us having to directly alter them.
+
+If we consider the bulk of the data to be around the mean and have approximately symmetric distribution it can be observed that roughly 68%, 95%, and 99.7% of the data sits within one, two and three standard deviations of the mean respectively. The three sigma rule $(\mu \pm 3\sigma)$ is often cited as an indicator for an observation being an outlier, this rule of thumb utilises the standard deviation to detect observations outside of this 99.7% range; resulting in the data outside of this range either being changed to match the observation that is closest to $(\mu \pm 3\sigma)$, depending on which side of the interval the observation falls on, or to delete the observation from the sample. However the three-sigma rule has a few key flaws, one of which being that it is particularly prone to masking; masking can happen when multiple outliers are present causing each other to become undetected by this rule of thumb. A typical example of masking is having one or more extreme outliers which ‘mask’ the less extreme outliers, in this case the extreme outlier would drastically change the mean resulting in a shift of the $3\sigma$ rule bringing the less extreme outliers within the accepted range.
+
+This issue can be avoided by other outlier detection methods, created with the intention of avoiding the problem of masking from extreme or clustered outliers. We define the Median Absolute Deviation (MAD) about the median in @eq-mad-formula as a robust alternative to the SD. Taking this with the median we can construct a robust $3\sigma$ rule, which involves replacing the sample mean with the median and the standard deviation with the MAD. 
+
+$$
+\text{MAD}(x) := \text{median}{|x_i - \text{median}(x_i)|}.
+$$ {#eq-mad-formula}
+
+However in this form the scale of the MAD is not comparable to the SD, so we divide by the MAD of a standard normal random variable, which we show in @sec-normal-dist-mad-proof to be $0.6745 = \Phi^{-1}(0.75)$. We denote the normalised MAD the MADN, therefore the robust $3\sigma$ rule can be written as 
+$$
+(\text{median}(x_i) \pm 3\cdot\text{MADN}(x_i)).
+$$ {#eq-robust-3-sigma}
+
+
+The drawbacks of using the median or MADN instead of the mean and standard deviation are found a loss of statistical efficiency. The inefficiency of MAD becomes an issue when dealing with data that has no outliers and we therefore are reducing efficiency for little to no gain in accuracy or precision. However, there are other, more popular, outlier detection methods.
+
+The final method we will discuss is the utilising OLS (Ordinary Least Squares) to uncover influential observations, we will be talking about bivariate data from here on. This is done by finding the line that best fits the data and then seeing which observations have high leverage and large residual. A point of high leverage is one that sits near an edge of the majority of data, meaning we are only concerned for the x value when looking at leverage. To understand when to call a point influential or not we must also discuss residuals of observations, the residual of an observation is simply the distance of the y value, given by the observation, from the predicted value of the fitted model. When an observation has enough leverage and a high residual it is then called influential. The ultimate decision of an observation being significantly influential is still left up to the data practitioner, @Cook_1977 came up with a way to combine the leverage with the residual of an observation in attempt to quantify how influential any observation is. The Cook's distance formula is shown in @eq-cooks-distance-formula, with $h_ii$ being diagonal elements of the "hat matrix"^[Sometimes the $h_{ii}$ are called leverages]. When used, Cook's distance is alongside a chosen rule of thumb to characterise a point as influential, one rule of thumb is comparing the Cook’s distance of observations to the F distribution with $D_i > F_{p, n-p}(0.5)$ means that observation is highly influential, even values of $D_i > F_{p, n-p}(0.2)$ are typically investigated. 
+$$ 
+\frac{1}{p+1}\left(\frac{h_{ii}}{1-{h_{ii}}}\right)r_i^2
+$$ {#eq-cooks-distance-formula}
+
+Another such rule of thumb is if $D_i > (4/(n - p - 1))$ then the observation is of significant influence, with n being the number of points and p being the number of observations. Similarly to before, what follows is a decision on whether the observation should be kept as is, brought within an 'acceptable' range or deleted from the data sample/set. However, there is debate whether Cook's distance accurately represents outliers, for example in @Kim2017.
+
+A recurring issue with these outlier detection methods that we have covered is that they require human input on what results flag an observation as an outlier. This lack of systemic practice creates valid scrutiny for these methods, and as such we want a way to avoid the impact of these outliers without human intervention and taking assumptions which require in-depth understanding of the data collection. One strong set of methods with extensive theoretical backing is M-estimators @alma9911772489302420[p. 22]
+which generalises OLS and allows for control, via a parameter, over the robustness of the estimator. However, increasing the robustness has a trade-off of decreasing the efficiency under normal errors. Including M-estimators, regression estimators have a property called breakdown points detailing what the largest proportion of contamination the data can have before guaranteeing the estimation to be totally uninformative. Intuitively, the breakdown point of an estimator can't be higher than 50% - if more than half of data is noise then the estimator will be unable to create an uncontaminated model. In the next section, we will start with M-estimators to explore novel methods for data analysis of contaminated data whilst considering the cost of efficiency if the data were clean.
+
+# M-Estimators {#sec-m-estimators}
 
 Many models applying statistics or classification are highly sensitive to outliers. Even one extreme outlier can skew estimates, resulting in unreliable results. Therefore, we must ensure stable estimation methods to manoeuvre around these problematic outliers.
 
 One of the main estimators in robust statistics is the M-estimator, meaning maximum likelihood–type estimator. These provide a flexible method for estimating parameters.
 
-They are defined as solutions to optimisation problems by choosing a loss function. Let $x_1, \dots, x_n$ be observations and let $\rho(\cdot)$ be a loss function. An M-estimator of parameter $\theta$ is defined as
+They are defined as solutions to optimisation problems by choosing a loss function in @alma9911772489302420[p. 23-25]. Let $x_1, \dots, x_n$ be observations and let $\rho(\cdot)$ be a loss function. An M-estimator of parameter $\theta$ is defined as
 
 $$
 \hat{\theta} = \arg\min_\theta \sum_{i=1}^n \rho(x_i - \theta).
@@ -83,13 +115,13 @@ $$
 y_i = x_i^T \beta + \varepsilon_i, \quad i = 1, \dots, n
 $$
 
-where $x_i$ is a vector of predictors and $\beta$ is the vector of regression coefficients. The residual corresponding to a parameter value $\beta$ is
+where $x_i$ is a vector of predictors, $\beta$ is the vector of regression coefficients and $\varepsilon_i$ is a irreducible noise vector. The residual corresponding to a parameter value $\beta$ is
 
 $$
 r_i(\beta) = y_i - x_i^T \beta.
 $$
 
-Regression M-estimators are defined by minimizing a robust objective function of the standardized residuals
+Regression M-estimators are defined in @alma9911772489302420[p. 98] by minimizing a robust objective function of the standardised residuals
 
 $$
 \hat{\beta} =
@@ -98,7 +130,7 @@ $$
 \rho \left( \frac{r_i(\beta)}{s} \right),
 $$ {#eq-m-estimator-minimiser}
 
-where $s$ is a scale estimate used to standardize the residuals.
+where $s$ is a scale estimate used to standardise the residuals.
 
 The corresponding estimating equations are
 
@@ -111,26 +143,20 @@ $$
 These equations can also be written in the form
 
 $$
-\sum_{i=1}^n w_i r_i(\beta)x_i = 0,
+\sum_{i=1}^n w_i r_i(\beta)x_i = 0 \quad \text{with weights} \quad 
+w_i = \frac{\psi\left(\frac{r_i(\beta)}{s}\right)}{\frac{r_i(\beta)}{s}}.
 $$
 
-with weights
-
-$$
-w_i =
-\frac{\psi\left(\frac{r_i(\beta)}{s}\right)}
-{\frac{r_i(\beta)}{s}}.
-$$
 
 Since many quantities depend on one another, the estimation procedure is iterative. The residuals depend on the estimate of $\beta$, the weights $w_i$ depend on the residuals through the $\psi$ function, and the updated estimate of $\beta$ depends on the weights.
 
-Typically, the estimation is performed using iteratively reweighted least squares (IRLS). We start from an initial estimate of $\beta$, compute the residuals, determine the weights from the $\psi$ function, and then compute a weighted least squares fit. This procedure is repeated until convergence.
+Typically, the estimation is performed using iteratively reweighted least squares (IRLS). We start from an initial estimate of $\beta$, compute the residuals, determine the weights from the $\psi$ function, and then compute a weighted least squares fit. This procedure is repeated until convergence. More discussion can be found in @alma9911772489302420[p. 104].
 
-A scale estimate $s$ is used to standardize the objective function. The scale can either be fixed or estimated jointly with the regression parameters. It is important that $s$ is robust, since a non-robust scale could become very large when outliers are present. In that case the standardized residuals $\frac{r_i(\beta)}{s}$ become artificially small and the weighting mechanism no longer reduces the influence of extreme observations.
+A scale estimate $s$ is used to standardise the objective function. The scale can either be fixed or estimated jointly with the regression parameters. It is important that $s$ is robust, since a non-robust scale could become very large when outliers are present. In that case the standardised residuals $\frac{r_i(\beta)}{s}$ become artificially small and the weighting mechanism no longer reduces the influence of extreme observations.
 
 A common choice for the initial scale estimate is the normalized median absolute deviation (MADN).
 
-The behaviour of the estimator is determined by the choice of loss function $\rho$, its derivative $\psi$, and the associated weight function $w$.
+The behaviour of the estimator is determined by the choice of loss function $\rho$, its derivative $\psi$, and the associated weight function $W$.
 
 ```{r}
 #| label: library-setup
@@ -140,12 +166,15 @@ library(tidyverse)
 library(glue)
 library(latex2exp)
 library(patchwork)
+library(nortest)
+
+set.seed(0)
 
 source("../functions.R")
 ```
 ```{r}
 #| label: fig-psi-rho-weight-functions
-#| fig-cap: Plots of $\rho$, $\psi$ and weight functions of Huber and Bisquare M-estimators.
+#| fig-cap: Plots of $\rho$, $\psi$ and weight functions of Huber and Bisquare M-estimators. See @eq-huber-m-estimator and @eq-bisquare-m-estimator for more information.
 #| fig-width: 10
 #| fig-height: 6
 
@@ -184,11 +213,60 @@ p1 / p2 / p3 # this is from patchwork
 ```
 
 
-Two common choices are the Huber and Bisquare functions, see @fig-psi-rho-weight-functions for their plots. The Huber function limits the influence of large residuals but never assigns a weight of zero, meaning extreme observations still have a small influence on the fit. In contrast, the bisquare function assigns zero weight to sufficiently large residuals, effectively removing these observations from the fitting procedure. M-estimators which satisfy this are called *redescending* and they are the most popular for linear regression, despite them not necessarily producing a unique solution of @eq-m-estimator-minimiser. 
+Two common choices are the Huber and Bisquare functions given by @eq-huber-m-estimator, and @eq-bisquare-m-estimator respectively. The functions are plotted in @fig-psi-rho-weight-functions. The Huber function limits the influence of large residuals but never assigns a weight of zero, meaning extreme observations still have a small influence on the fit. In contrast, the Bisquare function assigns zero weight to sufficiently large residuals, effectively removing these observations from the fitting procedure. M-estimators which satisfy this are called *redescending* and they are the most popular for linear regression, despite them not necessarily producing a unique solution of @eq-m-estimator-minimiser. 
+
+Varying the value of $k$ in @eq-huber-m-estimator and @eq-bisquare-m-estimator controls the point at which residuals are down-weighted, and it can be shown increasing $k$ increases the efficiency (under normal errors) of the M-estimator. However, this increase causes fewer outliers to be down-weighted, reducing robustness. Taking $k\to\infty$ in these equations the M-estimators converge to OLS, which can also be seen through the weight functions in @fig-psi-rho-weight-functions. In practice, @alma9911772489302420 recommends choosing $k$ so that the estimator is 85 or 95% efficient under normal errors.
+$$
+\text{Huber:}\, \rho_k=
+\begin{cases} 
+    x^2 & |x|\leq k \\
+    2k|x| - k^2 & |x|>k
+\end{cases}
+\qquad
+\psi_k(x) =
+\begin{cases} 
+    2x & |x|\leq k \\
+    2k\operatorname{sgn}(x) & |x|>k
+\end{cases}
+$$ {#eq-huber-m-estimator}
+
+$$
+\text{Bisquare:}\, \rho_k=
+\begin{cases} 
+    1 - [1 - (x/k)^2]^3 & |x|\leq k \\
+    1 & |x|>k
+\end{cases}
+\qquad
+\psi_k(x) = \frac{6}{k^2}x\left[1-\left(\frac{x}{k}\right)^2\right]\mathbb{1}_{|x|\leq k }
+$$ {#eq-bisquare-m-estimator}
+
+
+$$
+\text{with weight function} \quad W_k(x) = \frac{\psi_k(x)}{x}
+$$
 
 While regression M-estimators improve robustness compared to ordinary least squares, the initial fit can still be sensitive to outliers. Even with a robust initial scale, large outliers may influence the early iterations of the algorithm. Consequently, regression M-estimators may not be sufficiently robust in all situations. This motivates the development of more robust procedures such as S-estimators, which are discussed in the following section.
 
-# Regression MM-Estimators and Fast-S
+## Regression S-estimators
+
+S-estimators are instead defined as minimisers of the scale
+$$\hat{\beta} = \operatorname*{argmin}_{\beta} s(r(\beta)),$$
+
+where $s(r)$ is taken to be an M-estimator of scale
+$$
+\frac{1}{n}\sum_{i=1}^{n}{\rho\left(\frac{r_i(\beta)}{s}\right)} = \delta,
+$$ {#eq-implicit-m-scale}
+
+and other quantities defined as in @sec-m-estimators. Although the formula is very similar to @eq-m-estimator-minimiser, it is not an M-estimator as they solve a different optimisation problem. This is because @eq-implicit-m-scale is defined implicitly as changes to $\beta$ also affect $s(r(\beta))$. S-estimators with bounded $\rho$ functions have the property that their breakdown point can be set to 50%, the maximum possible value. It can be shown the constant $\delta$ controls the breakdown point of the estimator, which is given by 
+
+$$ \epsilon = \min(1-\delta, \delta) $$
+
+which has a maximum at 0.5. Once this is chosen, it must satisfy 
+$$\mathbb{E}\left[\rho_k\left(\frac{x}{s}\right)\right]=\delta \quad \text{with} \quad x\sim\mathcal{N}(0,1)$$
+
+so that under standard normal errors we get a scale estimate of 1. More discussion can be found in @alma9911772489302420[p. 34, 60] This constraint also determines $k$ for the S-estimator, which sets the efficiency^[For the Bisquare M-estimator defined in @sec-m-estimators, choosing $\delta=0.5$ here leads to $k=1.56$]. However despite this high breakdown point, it can be shown that S-estimators with smooth $\rho$ under normal errors can't have an efficiency higher than 0.33, see @alma9911772489302420[p. 125-126] for more information. In @sec-mm-and-fast-s we will resolve this with a procedure that is able to combine the high breakdown point of the S-estimator with the high efficiency of an M-estimator under normal errors.
+
+# Regression MM-Estimators and Fast-S {#sec-mm-and-fast-s}
 
 MM-estimators were introduced by @10.1214/aos/1176350366 and work on a two-step process of starting with an S-estimator to robustly estimate scale, followed by M-estimation with fixed scale coming from the previous step. The S-estimator also provides a starting point for estimating $\beta$ in the second step. They are able to inherit the high breakdown point of the S-estimator, while also keeping the high normal efficiency of an M-estimator. The M-estimation step follows @eq-m-estimator-minimiser as in the previous section.
 
@@ -296,39 +374,81 @@ df %>%
 
 ## Breakdown point simulation {#sec-breakdown-sim}
 
-Now wish to verify the breakdown point of the MM-estimator, which is roughly 50%. In this simulation we start from $\epsilon\sim\mathcal{N}(0,1)$ once again and we set an increasing proportion of points to 10,000. This sets up two competing lines, namely $y = 10000$ and @eq-line-and-small-gaussian-noise. We fix $N=200$ and $1500$ replications at contamination proportions of $\epsilon=0.2, 0.45, 0.49, 0.5, 0.51$ and $0.55$. The results can be found in @fig-breakdown-line-graph and @tbl-breakdown-slope, along with discussion of the intercept term in @tbl-breakdown-intercept-appendix. The most striking feature of the figure is the spike near $\epsilon=0.5$ and the RMSE then decreasing back to one - which is actually the error when the model fits only to the $y=10000$ line. The highest RMSE represents the point when the MM-estimator can't distinguish the contamination from the original line, but for $\epsilon$ bigger than 0.5 the $y=10000$ the MM-estimator exclusively passes through contaminated points. A similar story is true for the intercept of the MM-estimator (lower panel), that it degrades slowly until half the points are contaminated. On the other hand, in both cases OLS performs badly even under $\epsilon=0.2$, and it degrades at a constant rate. In @tbl-breakdown-slope we see that the variance also behaves similar to the RMSE for the MM-estimator, being highest when noise and real data have equal proportions and then decreasing when noise is more frequent than real data. An interesting finding is that this does not occur for the bias of the slope, however for this type of noise a bias near 1 still shows breakdown of the estimator.
+Now we seek to verify the breakdown point of the MM-estimator constructed in @sec-mm-and-fast-s, which is roughly 50%. In this simulation we start from @eq-line-and-small-gaussian-noise once again and we set an increasing proportion of points to 10,000. This sets up two competing lines, namely $y = 10000$ and @eq-line-and-small-gaussian-noise. We fix $N=200$ and $1500$ replications at contamination proportions of $\epsilon=0.2, 0.45, 0.49, 0.5, 0.51$ and $0.55$. The results can be found in @fig-breakdown-line-graph and @tbl-breakdown-slope, along with discussion of the intercept term in @tbl-breakdown-intercept-appendix. The most striking feature of the figure is the spike near $\epsilon=0.5$ and the RMSE then decreasing back to one - which is actually the error when the model fits only to the $y=10000$ line. The highest RMSE represents the point when the MM-estimator can't distinguish the contamination from the original line, but for $\epsilon$ bigger than 0.5 the $y=10000$ the MM-estimator exclusively passes through contaminated points. A similar story is true for the intercept of the MM-estimator (lower panel), that it degrades slowly until half the points are contaminated. On the other hand, in both cases OLS performs badly even under $\epsilon=0.2$, and it degrades at a constant rate. In @tbl-breakdown-slope we see that the variance also behaves similar to the RMSE for the MM-estimator, being highest when noise and real data have equal proportions and then decreasing when noise is more frequent than real data. An interesting finding is that this does not occur for the bias of the slope, however for this type of noise a bias near 1 still shows breakdown of the estimator.
 
 
 ```{r}
 #| label: fig-breakdown-line-graph
-#| fig-cap: Line graph of RMSE (y) against $\epsilon$ proportion of outliers. MSE could be used instead for the y-axis, but RMSE makes for easier interpretation. Note the gradual worsening of OLS and the sudden increase of RMSE for MM near $\epsilon=0.5$, verifying the breakdown point.
+#| fig-cap: Line graph of RMSE (y) against $\epsilon$ proportion of outliers. MSE could be used instead for the y-axis, but RMSE makes for easier interpretation. Note the gradual worsening of OLS and the sudden increase of RMSE for MM near $\epsilon=0.5$, verifying the breakdown point. Shaded bootstrap 95% confidence intervals are plotted also, calculated over 1000 samples with replacement.
+#| fig-width: 6
+#| fig-height: 4
 
 df <- read.csv("../data/breakdown_200.csv")
 
-slope_breakdown <- df %>% group_by(cp) %>% 
-    summarise(rmse_mm = rmse(slope_mm, 1), rmse_ols = rmse(slope_ols, 1)) %>%
-    ggplot(aes(x = cp)) + 
-        geom_line(aes(y = rmse_mm), color = "red") +
-        geom_line(aes(y = rmse_ols), color = "blue") +
-        labs(x = NULL, title = "RMSE breakdown of slope estimate", y = TeX("RMSE($\\hat{\\beta}_{MM}$)")) +
-        theme(axis.text.x=element_blank()) +
-        theme_minimal() 
+boot_rmse <- function(x, x_hat, reps = 1000) {
+    boots <- replicate(reps, {
+        s <- sample(x, replace = TRUE)
+        sqrt(mean((s - x_hat)^2))
+    })
+    quantile(boots, c(0.025, 0.975))
+}
 
-intercept_breakdown <- df %>% group_by(cp) %>% 
-    summarise(rmse_mm = rmse(intercept_mm, 1), rmse_ols = rmse(intercept_ols, 1)) %>%
-    ggplot(aes(x = cp)) + 
-        geom_line(aes(y = rmse_mm), color = "red") +
-        geom_line(aes(y = rmse_ols), color = "blue") +
-        labs(title = "RMSE breakdown of intercept estimate", x = TeX("$\\epsilon$"), y = TeX("RMSE($\\hat{\\beta}_{MM}$)")) +
-        theme_minimal()
+# long code blocks here, would need to be refactored if we were considering more predictors or different estimators
+slope_df <- df %>%
+    group_by(cp) %>%
+    summarise(
+        rmse_mm = sqrt(mean((slope_mm - 1)^2)),
+        rmse_ols = sqrt(mean((slope_ols - 1)^2)),
+        mm_ci_lo = boot_rmse(slope_mm, 1)[1],
+        mm_ci_hi = boot_rmse(slope_mm, 1)[2],
+        ols_ci_lo = boot_rmse(slope_ols, 1)[1],
+        ols_ci_hi = boot_rmse(slope_ols, 1)[2]
+    )
 
-slope_breakdown / intercept_breakdown
+intercept_df <- df %>% # the true value of our intercept
+    group_by(cp) %>%
+    summarise(
+        rmse_mm = sqrt(mean((intercept_mm - 0)^2)),
+        rmse_ols = sqrt(mean((intercept_ols - 0)^2)),
+        mm_ci_lo = boot_rmse(intercept_mm, 0)[1],
+        mm_ci_hi = boot_rmse(intercept_mm, 0)[2],
+        ols_ci_lo = boot_rmse(intercept_ols, 0)[1],
+        ols_ci_hi = boot_rmse(intercept_ols, 0)[2]
+    )
 
+# ---- 
+
+slope_breakdown <- ggplot(slope_df, aes(x = cp)) +
+    geom_ribbon(aes(ymin = mm_ci_lo, ymax = mm_ci_hi), fill = "red", alpha = 0.2) +
+    geom_ribbon(aes(ymin = ols_ci_lo, ymax = ols_ci_hi), fill = "blue", alpha = 0.2) +
+    geom_line(aes(y = rmse_mm, color = "MM")) +
+    geom_line(aes(y = rmse_ols, color = "OLS")) +
+    scale_color_manual(values = c("MM" = "red", "OLS" = "blue"), name = NULL) +
+    labs(x = NULL, title = "Slope", y = "RMSE") +
+    theme_minimal() +
+    theme(axis.text.x = element_blank(), legend.position = "none", plot.title = element_text(size = 9))
+
+intercept_breakdown <- ggplot(intercept_df, aes(x = cp)) +
+    geom_ribbon(aes(ymin = mm_ci_lo, ymax = mm_ci_hi), fill = "red", alpha = 0.2) +
+    geom_ribbon(aes(ymin = ols_ci_lo, ymax = ols_ci_hi), fill = "blue", alpha = 0.2) +
+    geom_line(aes(y = rmse_mm, color = "MM")) +
+    geom_line(aes(y = rmse_ols, color = "OLS")) +
+    scale_color_manual(values = c("MM" = "red", "OLS" = "blue"), name = NULL) +
+    labs(title = "Intercept", x = TeX("$\\epsilon$"), y = "RMSE") +
+    theme_minimal() +
+    theme(legend.position = "none", plot.title = element_text(size = 9))
+
+(slope_breakdown / intercept_breakdown +
+    plot_layout(guides = "collect") &
+    theme(legend.position = "bottom")) +
+    plot_annotation(title = TeX("RMSE breakdown of $\\hat{\\beta}$"), theme = theme(plot.title = element_text(size = 11)))
+
+# ----
 ```
 
 ```{r}
 #| label: tbl-breakdown-slope
-#| tbl-cap: s
+#| tbl-cap: Table of RMSE, variance and bias of OLS and MM estimators for varying proportion $\epsilon$ of contamination. Contaminated values are set to 10000, whereas clean data follows@eq-line-and-small-gaussian-noise. This table deals with the slope estimate, see @sec-breakdown-intercept-appendix for discussion of the intercept. 
 
 df %>%
     group_by(cp) %>%
@@ -356,12 +476,53 @@ df %>%
         escape = FALSE,
     ) %>%
     kable_styling(latex_options = c("hold_position"))
-
-
 ```
 
 ## Agreement with MASS
 
+We lastly verify our implementation is correct by testing against `MASS` @MASS, specifically the `rlm` function which performs MM-estimation with Fast-S as the initial estimator. 
+
+```{r}
+#| label: fig-mass-vs-mm-convergence
+#| fig-cap: Line graph of number of samples (x) against relative and absolute difference between our MM-estimator and MASS, for the slope and intercept respectively. Note the absolute difference was chosen for the intercept to avoid division by zero. The median and 95th percentiles are shown, and the decrease as N increases shows our estimator agrees very closely with MASS.
+#| fig-width: 6
+#| fig-height: 4
+
+df <- read.csv("../data/mass_agreement.csv")
+plot_df <- df %>%
+    mutate(rd_slope = abs(slope_mm - slope_mass), ad_int = abs(intercept_mm - intercept_mass)) %>%
+    group_by(N_pts) %>%
+    summarise(
+        median_rd_slope = median(rd_slope),
+        median_ad_int = median(ad_int),
+        pct_95_rd_slope = quantile(rd_slope, 0.95),
+        pct_95_ad_int = quantile(ad_int, 0.95)
+    )
+
+# thought about adding a bootstrap ci but it's so small it's invisible!
+
+p1 <- ggplot(plot_df, aes(x = N_pts)) +
+    geom_line(aes(y = median_rd_slope, color = "median")) +
+    geom_line(aes(y = pct_95_rd_slope, color = "95th percentile"), linetype = 2) +
+    scale_colour_manual(values = c("median" = "red", "95th percentile" = "blue"), name = NULL) +
+    labs(x = NULL, y = "relative", title = "Slope") +
+    theme_minimal() +
+    theme(axis.text.x = element_blank(), legend.position = "none", plot.title = element_text(size = 9))
+
+p2 <- ggplot(plot_df, aes(x = N_pts)) +
+    geom_line(aes(y = median_ad_int, color = "median")) +
+    geom_line(aes(y = pct_95_ad_int, color = "95th percentile"), linetype = 2) +
+    scale_colour_manual(values = c("median" = "red", "95th percentile" = "blue"), name = NULL) +
+    labs(x = TeX("$N$"), y = "absolute", title = "Intercept") +
+    theme_minimal() +
+    theme(legend.position = "none", plot.title = element_text(size = 9))
+
+
+(p1 / p2 + 
+    plot_layout(guides = "collect") &
+    theme(legend.position = "bottom")) +
+    plot_annotation(title = "Agreement between MASS and our MM-estimator by sample size", theme = theme(plot.title = element_text(size = 11)))
+```
 
 # References 
 
@@ -373,16 +534,15 @@ df %>%
 
 ## Algorithms {#sec-algos}
 
-```{=latex}
-\newcommand{\Break}{\State \textbf{break}}
+\begin{algorithm}[H]
+\begin{algorithmic}
+\caption{Fast-S}
+\label{alg:fast-s}
 \algnotext{EndFor}
 \algnotext{EndIf}
 \algnotext{EndWhile}
 \algnotext{EndFunction}
 
-\begin{algorithm}[H]
-\caption{Fast-S}\label{alg:fast-s}
-\begin{algorithmic}
 \Require $n \geq 0$
 \Require $\text{length}(x) = \text{length}(y)$
 \Require $T\gg0$ maximum number of iterations
@@ -392,9 +552,10 @@ df %>%
     \State $N_{\text{sub}} \leftarrow \lceil \log(\alpha) / \log(1 - (1-\epsilon)^p) \rceil$ \Comment{see \eqref{eq-subsample-lbound}}
     \State  $\rho_k(x), w_k(x)$ \leftarrow \text{Bisquare $\rho$, and weight resp. with $k=1.547$}
 
+
     \For{$i = 1, \dots, N_{\text{sub}}$}
         \State $\xi_i \leftarrow $ random subsample of $p$ indices from $\{1, \dots, n\}$
-        \State $\mathbf{X}_{i} \leftarrow X[\xi_i,\, :]$
+        \State $\mathbf{X}_{i} \leftarrow \mathbf{X}[\xi_i,\, :]$
         \State $y_{i} \leftarrow y[\xi_i]$
         \State $\hat{\beta} \leftarrow (\mathbf{X}_i^\top \mathbf{X}_i)^{-1} \mathbf{X}_i^\top y_i$ \Comment{fitting OLS through $p$ points}
         \State $r(\hat{\beta}) \leftarrow y - \mathbf{X} \hat{\beta}$ \Comment{take residuals on the full data}
@@ -437,18 +598,23 @@ df %>%
 \end{algorithmic}
 \end{algorithm}
 
+
 \begin{algorithm}[H]
-\caption{S{-}Scale{-}iteration}\label{alg:s-scale}
 \begin{algorithmic}
+\caption{S{-}Scale{-}iteration}
+\label{alg:s-scale-iteration}
 \Function{S{-}Scale{-}iteration}{$r(\hat{\beta}), s_{\text{init}}, \rho_k, w_k, T$}
 
-    \State $b \leftarrow 0.5$ \Comment{chosen for the Bisquare family}
+    \State $\delta \leftarrow 0.5$ \Comment{chosen for the Bisquare family}
 
     \State $s \leftarrow s_{\text{init}}$
     \For{$k = 1, \dots, T$}
-        \State $s_{\text{new}} \leftarrow s \sqrt{\frac{1}{nb} \sum_{i=1}^{n} \rho(r(\hat{\beta}) / s)}$ 
+        \State $s_{\text{new}} \leftarrow s \sqrt{\frac{1}{n\delta} \sum_{i=1}^{n} \rho(r(\hat{\beta}) / s)}$ 
         \If{$|(s_{\text{new}} / s) - 1| < \epsilon$} \Comment{convergence check}
+            \State $s \leftarrow s_{\text{new}}$
             \Break
+        \Else
+            \State $s \leftarrow s_{\text{new}}$
         \EndIf
     \EndFor
     \State \Return $s$
@@ -458,8 +624,9 @@ df %>%
 \end{algorithm}
 
 \begin{algorithm}[H]
-\caption{I{-}Step}\label{alg:i-step}
 \begin{algorithmic}
+\caption{I{-}Step}
+\label{alg:I-step}
 
 \Function{I{-}Step}{$\hat{\beta}, s_{\text{init}}, \rho_k, w_k$}
     \State $\mathbf{W} \leftarrow \text{diag}(w_k(r(\hat{\beta}) / s))$
@@ -471,16 +638,14 @@ df %>%
 
 \end{algorithmic}
 \end{algorithm}
-```
-
 
 ## Normal distribution of MM-estimator slopes
 
-First we check a histogram and QQplot of the MM-estimator slopes in @fig-slope-histogram-appendix. Visually it appears the slopes follow an approximately normal distribution. Then in @tbl-mm-ad-test-appendix we see the p-value is less than 0.05 only for $N=50$, which can be attributed to small sample size.
+First we check a histogram and QQplot of the MM-estimator slopes in @fig-slope-histogram-appendix. Visually it appears the slopes follow an approximately normal distribution. Then in @tbl-mm-ad-test-appendix we use an Anderson-Darling (AD) test which fails to reject the null hypothesis of normality. Taking these together there is strong evidence the MM-estimator estimates follow a normal distribution.
 
 ```{r}
 #| label: fig-slope-histogram-appendix
-#| fig-cap: Histogram of slopes (above) and QQplot (below) of MM-estimator simulated in @sec-normal-eff-sim for the $N=500$ case.
+#| fig-cap: Histogram of slopes (above) and QQplot (below) of MM-estimator simulated in @sec-normal-eff-sim for the $N=500$ case. The QQplot is included as an additional check despite the histogram appearing to have the shape of a normal distribution.
 #| fig-width: 6
 #| fig-height: 3
 
@@ -507,9 +672,10 @@ hist / qqplot
 #| label: tbl-mm-ad-test-appendix
 #| tbl-cap: Anderson-Darling (AD) test p-values by $N$.
 
-df %>% group_by(N_pts) %>%
+df %>%
+    group_by(N_pts) %>%
     summarise(ad_pval = ad.test(slope_mm)$p.value) %>%
-    mutate(ad_pval = formatC(ad_pval, format = "e", digits = 3)) %>%
+    mutate(ad_pval = round(ad_pval, 3)) %>%
     kbl(
         col.names = c("$N$", "AD p-value"),
         format = "latex",
@@ -520,25 +686,25 @@ df %>% group_by(N_pts) %>%
     kable_styling(latex_options = c("hold_position"))
 ```
 
-## Breakdown of the intercept
+## Breakdown of the intercept {#sec-breakdown-intercept-appendix}
 
-We show an analogue of @tbl-breakdown-slope but for the intercept instead of the slope estimate in @tbl-breakdown-intercept-appendix. We don't see a decrease of any metric after the breakdown point, although this is due to the choice of contamination being $y=10000$. It seems that the breakdown of the intercept occurs earlier than that for the slope, results could be simulated over more values of $N$ and $\epsilon$ with different contamination types to verify this further. 
+We show details of the intercept term in @tbl-breakdown-intercept-appendix, from the simulation in @sec-breakdown-sim. We don't see a decrease of any metric after the breakdown point, although this is due to the choice of contamination being $y=10000$. It seems that the breakdown of the intercept occurs earlier than that for the slope, results could be simulated over more values of $N$ and $\epsilon$ with different contamination types to verify this further. 
 
 ```{r}
 #| label: tbl-breakdown-intercept-appendix
-#| tbl-cap: Similar to @tbl-breakdown-slope, but for the intercept term this time.
+#| tbl-cap: Simulation of breakdown of intercept from MM-estimator from @sec-breakdown-sim. @tbl-breakdown-slope shows the results for the slope estimate.
 
 df <- read.csv("../data/breakdown_200.csv")
 
 df %>%
     group_by(cp) %>%
     summarise(
-        OLS_rmse = rmse(intercept_ols, 1),
-        MM_rmse = rmse(intercept_mm, 1),
+        OLS_rmse = rmse(intercept_ols, 0),
+        MM_rmse = rmse(intercept_mm, 0),
         OLS_var = var(intercept_ols),
         MM_var = var(intercept_mm),
-        OLS_bias = mean(intercept_ols) - 1,
-        MM_bias = mean(intercept_mm) - 1
+        OLS_bias = mean(intercept_ols) - 0,
+        MM_bias = mean(intercept_mm) - 0
     ) %>%
     mutate() %>%
     kbl(
@@ -556,7 +722,30 @@ df %>%
         escape = FALSE,
     ) %>%
     kable_styling(latex_options = c("hold_position"))
-
-
 ```
 
+## MAD of the normal distribution {#sec-normal-dist-mad-proof}
+
+We provide a proof of the fact that
+
+$$ \text{MAD}(X)=\sigma\Phi^{-1}(0.75) \quad\text{with}\quad X\sim\mathcal{N}(\mu,\sigma^2). $$
+
+Noting that the median of the normal distribution is $\mu$, we find for $X\sim\mathcal{N}(\mu, \sigma^2)$ 
+
+\begin{align*}
+\text{MAD}(X) &= \text{median}|X-\text{median}(X)|\\
+    &= \text{median}|X-\mu|
+\end{align*}
+
+Using the idea that the median divides the sample in half, we can obtain
+
+\begin{align*}
+\frac{1}{2} &= \mathbb{P}(|X-\mu| \leq \text{MAD})\\
+    &= \mathbb{P}(|Z| \leq \text{MAD}/ \sigma)\\
+    &= \mathbb{P}(-\text{MAD}/ \sigma \leq Z \leq \text{MAD}/ \sigma)\\
+    &= \Phi(\text{MAD}/ \sigma) - \Phi(-\text{MAD}/ \sigma)\\
+    &= 2\Phi(\text{MAD}/ \sigma) - 1\\
+\frac{3}{4}    &= \Phi(\text{MAD}/ \sigma)\\
+\Phi^{-1}\left(\frac{3}{4}\right)&=\text{MAD}/ \sigma\\
+\implies \text{MAD} &= \sigma \Phi^{-1}\left(\frac{3}{4}\right) \approx 0.6745 \sigma
+\end{align*}
