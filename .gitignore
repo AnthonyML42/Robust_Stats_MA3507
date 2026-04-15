@@ -52,6 +52,7 @@ rsconnect/
 
 *.pdf
 report_files/
+report_cymraeg_files/
 data/normal_efficiency.csv
 data/gross_outlier*
 data/breakdown*

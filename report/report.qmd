@@ -780,4 +780,4 @@ $$
 \underset{\substack{i, j \\ j>i}}{\text{median}}\left(\frac{y_j-y_i}{x_j-x_i}\right)
 $$
 
-and it can be shown this estimator has a breakdown point of $\approx 29.3%$, see @huber_robust_stats[p. 66]. It suffers from low normal efficiency like S-estimators, but does not generalise to higher dimensions. A naïve implementation runs in $\mathcal{O}(n^2)$ time, however the TS formula is very similar to calculation of Kendall's $\tau$, which allows for computation in $\mathcal{O}(n\log n)$ time using Merge Sort (see @tau_nlogn).
+and it can be shown this estimator has a breakdown point of $\approx 29.3$%, see @huber_robust_stats[p. 66]. It suffers from low normal efficiency like S-estimators, but does not generalise to higher dimensions. A naïve implementation runs in $\mathcal{O}(n^2)$ time, however the TS formula is very similar to calculation of Kendall's $\tau$, which allows for computation in $\mathcal{O}(n\log n)$ time using Merge Sort (see @tau_nlogn).

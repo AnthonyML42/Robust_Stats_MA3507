@@ -1,0 +1,786 @@
+---
+title: "Canfod Gwerthoedd Eithafol ac Atchweliad Llinol Cadarn"
+language: cymraeg.yml
+pdf-engine: xelatex
+documentclass: article
+date: today
+fig-pos: "H"
+geometry: margin=1in
+execute:
+    echo: false
+    warning: false
+    message: false
+bibliography: references.bib
+csl: cardiff-university-harvard.csl
+link-citations: true
+toc: true
+toc-depth: 2
+number-sections: true
+fontsize: 11pt
+author: 
+    - "Adnan Akther (C23125434)"
+    - "Ioan Barber (C23040485)"
+    - "Anthony Lawrence (C23125134)"
+    - "Llŷr Davies (C21077567)"
+    - "Carwyn Hardiman (C23009849)"
+    - "Ashley Woollard (C23065527)"
+format:
+    pdf:
+        colorlinks: true
+        toccolor: black
+        linkcolor: blue
+        citecolor: blue
+        urlcolor: blue
+        include-in-header:
+            text: |
+                \usepackage{amsmath}
+                \usepackage{booktabs}
+                \usepackage{float}
+                \usepackage{unicode-math}
+                \usepackage{algorithm}
+                \usepackage{algpseudocode}
+                \newcommand{\Break}{\State \textbf{break}}
+                \renewcommand{\abstractname}{Crynodeb}
+                
+abstract: |
+    Mae’r adroddiad hwn yn archwilio sut mae modelau ystadegol traddodiadol yn ymateb i werthoedd eithafol ac yn asesu pa mor dda y gall dulliau atchweliad llinol cadarn eu trin. Ein prif ffocws yw’r amcangyfrifydd MM, sef dull sy’n defnyddio ymagwedd dau gam sy’n cyfuno pwynt chwalu uchel amcangyfrifydd S ag effeithlonrwydd uchel amcangyfrifydd M. Cynhelir efelychiadau i wirio priodweddau ystadegol yr amcangyfrifydd MM, y gellir ei ddefnyddio fel dewis cadarn yn lle OLS.
+---
+
+# Cyflwyniad
+
+Mae gwerthoedd eithafol, ers amser maith, wedi bod yn bwnc trafod pwysig ymhlith ymarferwyr data ac ystadegwyr — maent yn newid dadansoddiadau’n barhaus ac yn gallu achosi canlyniadau annymunol neu hyd yn oed gamarweiniol. Mae hon yn broblem hynod gyffredin mewn meysydd sy’n tueddu i weithio gyda setiau data llai, megis treialon clinigol. Er enghraifft, ystyriwch @Cordero2025, sy’n defnyddio dulliau cadarn oherwydd maint sampl bach. Yn yr adroddiad hwn byddwn yn trafod beth yw gwerth eithafol a rhai o’r nifer o ddulliau i ymdrin â hwy. Mae deall a delio â gwerthoedd eithafol yn dechrau gyda rheolau bras; nid oes safoni clir i’r dulliau hyn gan eu bod yn cael eu creu gan unigolion ac yn cael eu derbyn yn syml fel dulliau ymarferol gan ymarferwyr data eraill. Mae hyn yn codi rhai problemau amlwg, ac mae dulliau i osgoi’r diffyg eglurder hwn wedi’u datblygu ers degawdau, gyda llawer ohonynt wedi bod yn llwyddiannus.
+
+Un o’r dulliau hyn yw’r amcangyfrifydd M, sef dull sy’n brasamcanu model set ddata gyda chyn lleied o ddylanwad gan werthoedd eithafol â phosibl. Fodd bynnag, mae cyfyngiadau o ran effeithlonrwydd a phwynt lle mae gwerthoedd eithafol yn dod yn rhy niferus hyd yn oed i’r dull hwn eu trin. Dull tebyg arall yw’r amcangyfrifydd Theil-Sen (@Theil1992); mae’n cymryd ymagwedd wahanol i osgoi gwerthoedd eithafol ac, o’i ddefnyddio ar ei ben ei hun, mae’n fwy gwrthsefyll gwerthoedd eithafol na’r amcangyfrifydd M. Fodd bynnag, canfuom nad yw’r amcangyfrifydd Theil-Sen yn graddio’n dda gyda nifer o ragfynegwyr, nac yn meddu ar yr un gwarantau damcaniaethol â dulliau eraill. I ddechrau, yn yr adran gyntaf rydym yn troi at ddulliau syml sydd wedi’u profi dros amser, er eu bod wedi aros yn hir am welliannau. Am ragor o drafodaeth ar Theil-Sen, gweler @sec-theil-sen.
+
+# Canfod Allanolion Syml a Rhagofynion
+
+Wrth gasglu data, boed swm bach neu fawr, canfyddir fel arfer fod un neu fwy o arsylwadau “annormal”; rydym yn aml yn galw’r arsylwadau hyn yn allanolion gan nad ydynt yn cydymffurfio â mwyafrif y data. Fodd bynnag, byddai’n naïf galw unrhyw arsylwad nad yw’n cyd-fynd â’r tueddiadau yn allanolyn, neu hyd yn oed yn waeth, ei ddileu neu ei drin er mwyn osgoi poeni am effaith y data annormal hwn ar ddulliau dadansoddi. Yn yr adran hon, trafodwn beth sydd ei angen i adnabod allanolion yn hyderus mewn data, sut y gall yr allanolion hyn effeithio ar ein dadansoddiad ystadegol, pa opsiynau sydd ar gael i ddelio â hwy, ac yn fyr rhai dulliau sy’n gallu osgoi allanolion heb orfod eu haddasu’n uniongyrchol.
+
+Os ystyriwn fod mwyafrif y data o amgylch y cymedr ac â dosbarthiad tua chymesur, gellir arsylwi bod tua 68%, 95%, a 99.7% o’r data o fewn un, dau a thri gwyriad safonol o’r cymedr yn y drefn honno. Cyfeirir yn aml at reol y tri sigma $(\mu \pm 3\sigma)$ fel dangosydd o allanolyn; mae’r rheol fras hon yn defnyddio’r gwyriad safonol i ganfod arsylwadau y tu allan i’r ystod 99.7% hon. O ganlyniad, caiff data y tu allan i’r ystod hon naill ai ei newid i gyd-fynd â’r arsylwad agosaf at $(\mu \pm 3\sigma)$ (yn dibynnu ar ba ochr i’r cyfwng y mae’r arsylwad), neu caiff yr arsylwad ei ddileu o’r sampl. Fodd bynnag, mae gan y rheol tri sigma rai gwendidau allweddol, un ohonynt yw ei bod yn dueddol iawn o gael ei “chuddio” (masking); gall hyn ddigwydd pan fo nifer o allanolion yn bresennol, gan beri i’w gilydd beidio â chael eu canfod gan y rheol hon. Enghraifft nodweddiadol o hyn yw pan fo un neu fwy o allanolion eithriadol yn “cuddio” allanolion llai; yn yr achos hwn, bydd yr allanolyn eithriadol yn newid y cymedr yn sylweddol, gan symud y rheol $3\sigma$ a dod â’r allanolion llai o fewn yr ystod dderbyniol.
+
+Gellir osgoi’r broblem hon drwy ddefnyddio dulliau canfod allanolion eraill, sydd wedi’u datblygu’n benodol i osgoi’r broblem o guddio gan allanolion eithriadol neu glwstwr o allanolion. Diffiniwn y Gwyriad Absoliwt Canolrifol (MAD) o amgylch y canolrif yn @eq-mad-formula fel dewis cadarn yn lle’r gwyriad safonol. Gan gyfuno hyn â’r canolrif, gallwn lunio rheol $3\sigma$ gadarn, sy’n cynnwys disodli’r cymedr sampl â’r canolrif a’r gwyriad safonol â’r MAD.
+
+$$
+\text{MAD}(x) := \text{canolrif}{|x_i - \text{canolrif}(x_i)|}.
+$$ {#eq-mad-formula}
+
+Fodd bynnag, yn y ffurf hon nid yw graddfa’r MAD yn gymaradwy â’r gwyriad safonol (SD), felly rydym yn rhannu â MAD hapnewidyn normal safonol, yr ydym yn dangos yn @sec-normal-dist-mad-proof ei fod yn $0.6745 = \Phi^{-1}(0.75)$. Rydym yn dynodi’r MAD wedi’i normaleiddio fel y MADN; felly gellir ysgrifennu’r rheol gadarn $3\sigma$ fel
+$$
+(\text{canolrif}(x_i) \pm 3\cdot\text{MADN}(x_i)).
+$$ {#eq-robust-3-sigma}
+
+
+Anfanteision defnyddio’r canolrif a’r MADN yn lle’r cymedr a’r gwyriad safonol yw colled mewn effeithlonrwydd ystadegol. Mae aneffeithlonrwydd y MAD yn dod yn broblem wrth ddelio â data nad oes ganddo allanolion, ac felly rydym yn lleihau effeithlonrwydd heb fawr ddim neu ddim enillion mewn cywirdeb na manwl gywirdeb. Fodd bynnag, mae dulliau canfod allanolion eraill mwy poblogaidd ar gael.
+
+## OLS ar gyfer Canfod Allanolion a Phellter Cook
+
+Y dull olaf y byddwn yn ei drafod yw defnyddio OLS (Sgwariau Lleiaf Cyffredin) i ddatgelu arsylwadau dylanwadol; o hyn ymlaen byddwn yn trafod data deubarth. Gwneir hyn drwy ganfod y llinell sy’n ffitio’r data orau ac yna gweld pa arsylwadau sydd â throsoledd uchel a gweddillion mawr. Pwynt â throsoledd uchel yw un sy’n gorwedd ger ymyl mwyafrif y data, sy’n golygu ein bod ond yn ystyried gwerth x wrth edrych ar drosoledd. Er mwyn deall pryd i alw pwynt yn ddylanwadol ai peidio, rhaid hefyd trafod gweddillion arsylwadau; gweddill arsylwad yw’r pellter rhwng gwerth y, a roddir gan yr arsylwad, a’r gwerth a ragfynegir gan y model ffitiedig. Pan fo gan arsylwad ddigon o drosoledd a gweddill uchel, gelwir ef yn ddylanwadol. Mae’r penderfyniad terfynol ynghylch a yw arsylwad yn sylweddol ddylanwadol yn dal i gael ei adael i’r ymarferwr data. Cynigiodd @Cook_1977 ffordd o gyfuno’r trosoledd â gweddill arsylwad er mwyn ceisio meintioli pa mor ddylanwadol yw unrhyw arsylwad. Dangosir fformiwla Pellter Cook yn @eq-cooks-distance-formula, lle mae $h_{ii}$ yn elfennau diagonaidd y “matrics het”^[Weithiau gelwir $h_{ii}$ yn drosoledd]. Wrth ei ddefnyddio, defnyddir Pellter Cook ochr yn ochr â rheol fras ddewisol i nodweddu pwynt fel un dylanwadol; un rheol o’r fath yw cymharu Pellter Cook arsylwadau â’r dosraniad F, lle mae $D_i > F_{p, n-p}(0.5)$ yn golygu bod yr arsylwad yn hynod ddylanwadol, ac mae hyd yn oed gwerthoedd o $D_i > F_{p, n-p}(0.2)$ fel arfer yn cael eu hymchwilio.
+$$ 
+\frac{1}{p+1}\left(\frac{h_{ii}}{1-{h_{ii}}}\right)r_i^2
+$$ {#eq-cooks-distance-formula}
+
+Rheol fras arall o’r fath yw, os yw $D_i > (4/(n - p - 1))$, yna mae’r arsylwad yn un â dylanwad sylweddol, lle mae n yn nifer y pwyntiau a p yn nifer y rhagfynegwyr. Yn debyg i’r hyn a drafodwyd yn gynharach, y cam nesaf yw penderfynu a ddylid cadw’r arsylwad fel y mae, ei symud o fewn ystod “dderbyniol”, neu ei ddileu o’r sampl/set ddata. Fodd bynnag, mae dadl ynghylch a yw Pellter Cook yn cynrychioli allanolion yn gywir, er enghraifft yn @Kim2017.
+
+Mater sy’n codi dro ar ôl tro gyda’r dulliau canfod allanolion hyn yr ydym wedi’u trafod yw eu bod yn gofyn am fewnbwn dynol i benderfynu pa ganlyniadau sy’n nodi arsylwad fel allanolyn. Mae’r diffyg safoni hwn yn creu craffu dilys ar y dulliau hyn, ac felly rydym yn chwilio am ffordd i osgoi effaith yr allanolion hyn heb ymyrraeth ddynol na gwneud rhagdybiaethau sy’n gofyn am ddealltwriaeth fanwl o’r broses casglu data. Un set gref o ddulliau sydd â chefnogaeth ddamcaniaethol helaeth yw amcangyfrifo M @alma9911772489302420[p. 22], sy’n gyffredinoli OLS ac yn caniatáu rheolaeth, drwy baramedr, dros gadernid yr amcangyfrifydd. Fodd bynnag, mae cynyddu’r cadernid yn dod â chyfaddawd o leihau effeithlonrwydd o dan wallau normal. Gan gynnwys amcangyfrifyddion M, mae gan amcangyfrifyddion atchweliad briodwedd o’r enw pwynt chwalu, sy’n nodi’r gyfran fwyaf o halogiad y gall y data ei chael cyn i’r amcangyfrifiad ddod yn gwbl ddiwybodaeth. Yn reddfol, ni all pwynt chwalu amcangyfrifydd fod yn uwch na 50% — os yw mwy na hanner y data yn sŵn, ni fydd yr amcangyfrifydd yn gallu creu model heb halogiad. Yn yr adran nesaf, byddwn yn dechrau gydag amcangyfrifyddion M i archwilio dulliau newydd ar gyfer dadansoddi data wedi’i halogi, gan ystyried cost effeithlonrwydd pe bai’r data’n lân. Am drafodaeth ar ddulliau eraill i ganfod allanolion, gweler `EllipticEnvelope` o @scikit-learn a @alma9911772489302420[p.207-210].
+
+# Amcangyfrifyddion M {#sec-m-estimators}
+
+Mae llawer o fodelau sy’n defnyddio ystadegau neu ddosbarthu yn hynod sensitif i allanolion. Gall hyd yn oed un allanolyn eithafol ystumio amcangyfrifiadau, gan arwain at ganlyniadau annibynadwy. Felly, rhaid sicrhau dulliau amcangyfrif sefydlog i symud o gwmpas yr allanolion problematig hyn.
+
+Un o’r prif amcangyfrifyddion mewn ystadegau cadarn yw’r amcangyfrifydd M, sy’n golygu amcangyfrifydd tebyg i debygolrwydd mwyaf. Mae’r rhain yn darparu dull hyblyg ar gyfer amcangyfrif paramedrau.
+
+Fe’u diffinnir fel datrysiadau i broblemau optimeiddio drwy ddewis ffwythiant colled yn @alma9911772489302420[p. 23-25]. Gadewch i $x_1, \dots, x_n$ fod yn arsylwadau a gadewch i $\rho(\cdot)$ fod yn ffwythiant colled. Diffinnir amcangyfrifydd M o baramedr $\theta$ fel
+
+$$
+\hat{\theta} = \arg\min_\theta \sum_{i=1}^n \rho(x_i - \theta).
+$$
+
+Rydym yn cael yr hafaliadau amcangyfrif drwy wahaniaethu’r ffwythiant amcan. Gadewch i
+
+$$
+\psi(u) = \rho'(u).
+$$
+
+Yna mae’r amcangyfrifydd yn bodloni
+
+$$
+\sum_{i=1}^n \psi(x_i - \hat{\theta}) = 0.
+$$
+
+Mae dewisiadau gwahanol o $\rho$ yn arwain at amcangyfrifyddion gwahanol. Er enghraifft, mae colled absoliwt yn rhoi’r canolrif sampl, tra bod colled sgwâr yn rhoi’r cymedr sampl.
+
+Gellir defnyddio amcangyfrifyddion M ar gyfer amrywiaeth o baramedrau gan gynnwys lleoliad, graddfa, a chyfernodau atchweliad. Mae amcangyfrifyddion M lleoliad yn darparu dewisiadau amgen i’r cymedr sampl, mae amcangyfrifyddion graddfa yn darparu cadernid wrth fesur gwasgariad, ac yn yr adroddiad hwn rydym yn canolbwyntio ar amcangyfrifyddion M atchweliad, y gellir eu dehongli fel sgwariau lleiaf pwysol.
+
+## Amcangyfrifyddion M Atchweliad
+
+Ar gyfer atchweliad cadarn, ystyriwn y model atchweliad llinol
+
+$$
+y_i = x_i^T \beta + \varepsilon_i, \quad i = 1, \dots, n
+$$
+
+lle mae $x_i$ yn fector o ragfynegwyr, $\beta$ yn fector o gyfernodau atchweliad, ac $\varepsilon_i$ yn fector sŵn na ellir ei leihau. Y gweddill sy’n cyfateb i werth paramedr $\beta$ yw
+
+$$
+r_i(\beta) = y_i - x_i^T \beta.
+$$
+
+Diffinnir amcangyfrifyddion M atchweliad yn @alma9911772489302420[p. 98] drwy leihau ffwythiant amcan cadarn o’r gweddillion safonedig,
+
+
+$$
+\hat{\beta} =
+\arg\min_\beta
+\sum_{i=1}^n
+\rho \left( \frac{r_i(\beta)}{s} \right),
+$$ {#eq-m-estimator-minimiser}
+
+lle mae $s$ yn amcangyfrif graddfa a ddefnyddir i safoni’r gweddillion.
+
+Yr hafaliadau amcangyfrif cyfatebol yw
+
+$$
+\sum_{i=1}^n
+\psi \left( \frac{r_i(\beta)}{s} \right) x_i = 0,
+\quad \text{lle} \quad \psi = \rho'.
+$$
+
+Gellir ysgrifennu’r hafaliadau hyn hefyd yn y ffurf
+
+$$
+\sum_{i=1}^n w_i r_i(\beta)x_i = 0 \quad \text{gyda phwysau} \quad 
+w_i = \frac{\psi\left(\frac{r_i(\beta)}{s}\right)}{\frac{r_i(\beta)}{s}}.
+$$
+
+
+Gan fod llawer o faint yn dibynnu ar ei gilydd, mae’r weithdrefn amcangyfrif yn ailadroddol. Mae’r gweddillion yn dibynnu ar yr amcangyfrif o $\beta$, mae’r pwysau $w_i$ yn dibynnu ar y gweddillion drwy’r ffwythiant $\psi$, ac mae’r amcangyfrif wedi’i ddiweddaru o $\beta$ yn dibynnu ar y pwysau.
+
+Fel arfer, cyflawnir yr amcangyfrif gan ddefnyddio sgwariau lleiaf ailbwysol ailadroddol (IRLS); gweler algorithm cam-I yn @sec-algos am ragor o wybodaeth. Dechreuwn gydag amcangyfrif cychwynnol o $\beta$, cyfrifwn y gweddillion, pennwn y pwysau o’r ffwythiant $\psi$, ac yna cyfrifwn ffit sgwariau lleiaf pwysol. Ailadroddir y weithdrefn hon nes cyrraedd cydgyfeiriant. Ceir rhagor o drafodaeth yn @alma9911772489302420[p. 104].
+
+Defnyddir amcangyfrif graddfa $s$ i safoni’r ffwythiant amcan. Gall y raddfa naill ai fod yn sefydlog neu gael ei hamcangyfrif ar y cyd â’r paramedrau atchweliad. Mae’n bwysig bod $s$ yn gadarn, gan y gallai graddfa nad yw’n gadarn ddod yn fawr iawn pan fo allanolion yn bresennol. Yn yr achos hwnnw, bydd y gweddillion safonedig $\frac{r_i(\beta)}{s}$ yn dod yn artiffisial o fach, ac ni fydd y mecanwaith pwysoli bellach yn lleihau dylanwad arsylwadau eithafol.
+
+Dewis cyffredin ar gyfer yr amcangyfrif graddfa cychwynnol yw’r gwyriad absoliwt canolrifol wedi’i normaleiddio (MADN).
+
+Mae ymddygiad yr amcangyfrifydd yn cael ei bennu gan y dewis o ffwythiant colled $\rho$, ei ddeilliad $\psi$, a’r ffwythiant pwysau cysylltiedig $W$.
+
+```{r}
+#| label: library-setup
+library(knitr)
+library(kableExtra)
+library(tidyverse)
+library(glue)
+library(latex2exp)
+library(patchwork)
+library(nortest)
+
+set.seed(0)
+
+source("../functions.R")
+```
+```{r}
+#| label: fig-psi-rho-weight-functions
+#| fig-cap: Plotiau o’r ffwythiannau $\rho$, $\psi$ a’r ffwythiannau pwysau ar gyfer amcangyfrifyddion M Huber a Bisquare. Gweler @eq-huber-m-estimator ac @eq-bisquare-m-estimator am ragor o wybodaeth.
+#| fig-width: 10
+#| fig-height: 6
+
+k <- 1.548
+x_vals <- seq(-3, 3, length.out = 100)
+plotting_df <- data.frame(
+    x = x_vals, h_rho = huber_rho(x_vals, k),
+    h_psi = huber_psi(x_vals, k = k),
+    bi_rho = bisquare_rho(x_vals, k = k),
+    bi_psi = bisquare_psi(x_vals, k = k),
+    h_weight = huber_weight(x_vals, k = k),
+    bi_weight = bisquare_weight(x_vals, k = k)
+)
+# maybe the following can be condensed...
+
+p1 <- ggplot(plotting_df) +
+    geom_line(aes(x = x, y = h_rho), color = "blue") +
+    geom_line(aes(x = x, y = bi_rho), color = "red") +
+    labs(x = TeX("$x$"), y = TeX("$\\rho(x)$")) +
+    theme_minimal()
+
+p2 <- ggplot(plotting_df) +
+    geom_line(aes(x = x, y = h_psi, color = "Huber")) +
+    geom_line(aes(x = x, y = bi_psi, color = "Bisquare")) +
+    scale_color_manual(values = c("Huber" = "blue", "Bisquare" = "red")) +
+    labs(x = TeX("$x$"), y = TeX("$\\psi(x)$"), color = "Amcangyfrifydd") +
+    theme_minimal()
+
+p3 <- ggplot(plotting_df) +
+    geom_line(aes(x = x, y = h_weight), color = "blue") +
+    geom_line(aes(x = x, y = bi_weight), color = "red") +
+    labs(x = TeX("$x$"), y = "Pwysau") +
+    theme_minimal()
+
+p1 / p2 / p3 # this is from patchwork
+```
+
+Dau ddewis cyffredin yw’r ffwythiannau Huber a Bisquare, a roddir yn @eq-huber-m-estimator ac @eq-bisquare-m-estimator yn y drefn honno. Mae’r ffwythiannau wedi’u plotio yn @fig-psi-rho-weight-functions. Mae’r ffwythiant Huber yn cyfyngu ar ddylanwad gweddillion mawr ond nid yw byth yn neilltuo pwysau o sero, sy’n golygu bod arsylwadau eithafol yn dal i gael dylanwad bach ar y ffit. Mewn cyferbyniad, mae’r ffwythiant Bisquare yn neilltuo pwysau o sero i weddillion digon mawr, gan ddileu’r arsylwadau hyn yn effeithiol o’r weithdrefn ffitio. Gelwir amcangyfrifyddion M sy’n bodloni hyn yn *redescending*, ac maent ymhlith y rhai mwyaf poblogaidd ar gyfer atchweliad llinol, er nad ydynt o reidrwydd yn cynhyrchu datrysiad unigryw i @eq-m-estimator-minimiser.
+
+Mae amrywio gwerth $k$ yn @eq-huber-m-estimator ac @eq-bisquare-m-estimator yn rheoli’r pwynt lle mae gweddillion yn cael eu lleihau o ran pwysau, a gellir dangos bod cynyddu $k$ yn cynyddu effeithlonrwydd (o dan wallau normal) yr amcangyfrifydd M. Fodd bynnag, mae’r cynnydd hwn yn golygu bod llai o allanolion yn cael eu lleihau o ran pwysau, gan leihau’r cadernid. Wrth gymryd $k \to \infty$ yn yr hafaliadau hyn, mae’r amcangyfrifyddion M yn cydgyfeirio at OLS, y gellir ei weld hefyd drwy’r ffwythiannau pwysau yn @fig-psi-rho-weight-functions. Yn ymarferol, mae @alma9911772489302420 yn argymell dewis $k$ fel bod yr amcangyfrifydd yn 85% neu 95% effeithlon o dan wallau normal.
+$$
+\text{Huber:}\, \rho_k=
+\begin{cases} 
+    x^2 & |x|\leq k \\
+    2k|x| - k^2 & |x|>k
+\end{cases}
+\qquad
+\psi_k(x) =
+\begin{cases} 
+    2x & |x|\leq k \\
+    2k\operatorname{sgn}(x) & |x|>k
+\end{cases}
+$$ {#eq-huber-m-estimator}
+
+$$
+\text{Bisquare:}\, \rho_k=
+\begin{cases} 
+    1 - [1 - (x/k)^2]^3 & |x|\leq k \\
+    1 & |x|>k
+\end{cases}
+\qquad
+\psi_k(x) = \frac{6}{k^2}x\left[1-\left(\frac{x}{k}\right)^2\right]\mathbb{1}_{|x|\leq k }
+$$ {#eq-bisquare-m-estimator}
+
+
+$$
+\text{gyda ffwythiant pwysau} \quad W_k(x) = \frac{\psi_k(x)}{x}
+$$
+
+Er bod amcangyfrifyddion M atchweliad yn gwella cadernid o gymharu â sgwariau lleiaf cyffredin, gall y ffit cychwynnol fod yn sensitif i allanolion o hyd. Hyd yn oed gyda graddfa gychwynnol gadarn, gall allanolion mawr ddylanwadu ar iteriadau cynnar yr algorithm. O ganlyniad, efallai na fydd amcangyfrifyddion M atchweliad yn ddigon cadarn ym mhob sefyllfa. Mae hyn yn sbarduno datblygiad gweithdrefnau mwy cadarn megis amcangyfrifyddion S, a drafodir yn yr adran ganlynol.
+
+## Amcangyfrifyddion S Atchweliad
+
+Yn lle hynny, diffinnir amcangyfrifyddion S fel lleiafwyr y raddfa
+$$\hat{\beta} = \operatorname*{argmin}_{\beta} s(r(\beta)),$$
+
+lle mae $s(r)$ yn cael ei gymryd i fod yn amcangyfrifydd M o raddfa
+$$
+\frac{1}{n}\sum_{i=1}^{n}{\rho\left(\frac{r_i(\beta)}{s}\right)} = \delta,
+$$ {#eq-implicit-m-scale}
+
+a diffinnir meintiau eraill fel yn @sec-m-estimators. Er bod y fformiwla’n debyg iawn i @eq-m-estimator-minimiser, nid yw’n amcangyfrifydd M gan eu bod yn datrys problem optimeiddio wahanol. Mae hyn oherwydd bod @eq-implicit-m-scale yn cael ei ddiffinio’n ymhlyg, gan fod newidiadau i $\beta$ hefyd yn effeithio ar $s(r(\beta))$. Mae gan amcangyfrifyddion S gyda ffwythiannau $\rho$ cyfyngedig y briodwedd y gellir gosod eu pwynt chwalu i 50%, sef y gwerth mwyaf posibl. Gellir dangos bod y cysonyn $\delta$ yn rheoli pwynt chwalu’r amcangyfrifydd, a roddir gan
+
+$$ \epsilon = \min(1-\delta, \delta) $$
+
+sydd â gwerth mwyaf pan $\delta = 0.5$. Unwaith y dewisir hyn, rhaid iddo fodloni’r amod normaleiddio
+$$\mathbb{E}\left[\rho_k\left(\frac{x}{s}\right)\right]=\delta \quad \text{gyda} \quad x\sim\mathcal{N}(0,1)$$
+
+fel bod, o dan wallau normal safonol, yn rhoi amcangyfrif graddfa o 1. Ceir rhagor o drafodaeth yn @alma9911772489302420[p. 34, 60]. Mae’r cyfyngiad hwn hefyd yn pennu $k$ ar gyfer yr amcangyfrifydd S, sy’n gosod yr effeithlonrwydd^[Ar gyfer yr amcangyfrifydd M Bisquare a ddiffinnir yn @sec-m-estimators, mae dewis $\delta = 0.5$ yma yn arwain at $k = 1.56$]. Fodd bynnag, er gwaethaf y pwynt chwalu uchel hwn, gellir dangos na all amcangyfrifyddion S gyda $\rho$ llyfn o dan wallau normal gael effeithlonrwydd yn uwch na 0.33; gweler @alma9911772489302420[p. 125-126] am ragor o wybodaeth. Yn @sec-mm-and-fast-s byddwn yn datrys hyn gyda gweithdrefn sy’n gallu cyfuno pwynt chwalu uchel yr amcangyfrifydd S ag effeithlonrwydd uchel amcangyfrifydd M o dan wallau normal.
+
+# Amcangyfrifyddion MM Atchweliad a Fast-S {#sec-mm-and-fast-s}
+
+Cyflwynwyd amcangyfrifyddion MM gan @10.1214/aos/1176350366 ac maent yn gweithio drwy broses dau gam: dechrau gydag amcangyfrifydd S i amcangyfrif y raddfa’n gadarn, ac yna dilyn gyda amcangyfrif M gyda graddfa sefydlog o’r cam blaenorol. Mae’r amcangyfrifydd S hefyd yn darparu man cychwyn ar gyfer amcangyfrif $\beta$ yn yr ail gam. Mae amcangyfrifyddion MM yn gallu etifeddu pwynt chwalu uchel yr amcangyfrifydd S^[ar yr amod bod $k$>$k_0$, lle mae $k$ yn baramedr yr amcangyfrifydd M atchweliad, a $k_0$ o’r amcangyfrifydd S], tra hefyd yn cadw effeithlonrwydd uchel o dan wallau normal fel amcangyfrifydd M. Mae’r cam amcangyfrif M yn dilyn @eq-m-estimator-minimiser fel yn yr adran flaenorol.
+
+Gadewch i $p$ ddynodi nifer y rhagfynegwyr mewn problem atchweliad. Mae cyfrifo amcangyfrifydd S yn her gyfrifiadol, ond mae amcangyfrifiadau ymarferol ar gael pan fo $p$ yn fach. Rydym wedi gweithredu’r algorithm *Fast-S* o @Salibian-Barrera01062006, sy’n gweithio’n dda ar gyfer gwerthoedd bach neu gymedrol o $p$. Mae’r algorithm yn gweithio drwy gymryd nifer o is-samplau ar hap o’r data a chyfrifo amcangyfrifon S ar yr is-samplau hyn, ac yna dewis yr ymgeisydd “gorau” ar gyfer y raddfa. Gellir dangos bod nifer yr is-samplau sydd eu hangen i ddychwelyd amcangyfrifydd S gyda phwynt chwalu $\epsilon$ gyda thebygolrwydd $1-\alpha$ yn
+
+$$N_{\text{sub}}\geq\frac{\log(\alpha)}{\log(1-(1-\epsilon)^p)}. $$ {#eq-subsample-lbound}
+
+
+Gan gymryd $\alpha = 0.01$, $\epsilon = 0.5$ a $p = 2$ ar gyfer term llethr a rhyngdoriad, mae’r algorithm yn gofyn am o leiaf 17 is-sampl o’r data. Mae @eq-subsample-lbound hefyd yn dangos bod nifer yr is-samplau yn tyfu’n esbonyddol mewn perthynas â $p$. Am y psewdgod llawn, gweler @sec-algos. Un pryder posibl gyda *Fast-S* yw ei fod yn an-deterministaidd, ac y bydd ail-redeg y broses sawl gwaith yn cynhyrchu amcangyfrifon cychwynnol ychydig yn wahanol. Fodd bynnag, yn ymarferol, mae’r cam amcangyfrif M dilynol yn dal i gydgyfeirio at amcangyfrif terfynol tebyg iawn yn y pen draw. Gall dulliau penderfynol megis @Peña01061999 (P-Y) berfformio’n llawer gwell na *Fast-S* ar gyfer gwerthoedd mawr o $p$, er bod *Fast-S* yn ddewis mwy poblogaidd mewn llyfrgelloedd R fel amcangyfrif cychwynnol ar gyfer amcangyfrif MM.
+
+# Astudiaeth Efelychiad {#sec-simulation}
+
+Yn yr adran hon rydym yn cynnal efelychiadau i gymharu’r amcangyfrifydd MM â sgwariau lleiaf cyffredin (OLS) ar ddata synthetig. Ein nod yw darparu tystiolaeth gref bod gan yr amcangyfrifydd atchweliad arfaethedig lawer o briodweddau ystadegol dymunol. Cynhaliwyd yr efelychiadau gan ddefnyddio’r pecyn `furrr` (@furrr), a ffitiwyd llinellau atchweliad ar gyfer $N=50, 200$ a $500$ gyda $10,000$ ailadroddiad. Mae’r efelychiadau’n dechrau gyda data o
+
+$$ y=x+\epsilon \quad \text{lle} \quad \epsilon\sim\mathcal{N}(0,1) $$ {#eq-line-and-small-gaussian-noise}
+
+ac yn ychwanegu sŵn ychwanegol fel bo angen. Sylwer, ar gyfer canlyniadau sydd wedi’u fformatio fel cymarebau, bod yr amcangyfrif OLS yn cael ei gymryd fel y rhifiadur. Oni nodir fel arall, mae’r adrannau canlynol yn ymdrin yn bennaf ag amcangyfrif y llethr, a cheir trafodaeth ar y term rhyngdoriad yn yr atodiad.
+
+## Efelychiad Effeithlonrwydd Normal {#sec-normal-eff-sim}
+
+Er bod amcangyfrifyddion MM wedi’u cynllunio i ymdrin ag allanolion a gwallau nad ydynt yn normal, mae hefyd yn bwysig gwirio eu bod yn perfformio’n dda pan fo’r data ond yn cynnwys sŵn normal na ellir ei leihau. Ar gyfer hyn, cymerwn samplau o @eq-line-and-small-gaussian-noise yn unig. Gellir gweld y canlyniadau yn @tbl-normal-eff. Gwelwn fod yr effeithlonrwydd o 95% o’i gymharu ag OLS yn cyd-fynd â gwerth $k = 4.68$ a ddefnyddir yn yr amcangyfrifydd M Bisquare. Rydym hefyd yn gwirio dosbarthiad normal y llethrau yn @sec-m-est-normal-dist. Ar ben hynny, mae’r canlyniadau’n dangos tystiolaeth gref bod yr amcangyfrifydd M yn gyson, o ystyried y gostyngiad mewn MSE wrth i $N$ gynyddu. Rydym yn ymdrin ag ychwanegu sŵn at yr arsylwadau yn yr is-adrannau canlynol.
+
+```{r}
+#| label: tbl-normal-eff
+#| tbl-cap: Cymhariaeth o amrywiannau amcangyfrifyddion MM ac OLS gyda gwerthoedd $N$ amrywiol, wedi’u cyfartaleddu dros 10,000 ailadroddiad. Cyfrifir effeithlonrwydd fel cymhareb yr amrywiannau, a nodwch fod, gan fod $\text{MSE} \approx \operatorname{Var}$, yr effeithlonrwydd a’r gymhareb MSE yn union yr un fath ar ôl talgrynnu.
+
+
+mse <- function(x, x_hat) {
+    mean((x - x_hat)^2)
+}
+
+rmse <- function(x, x_hat) {
+    sqrt(mse(x, x_hat))
+}
+
+# switching to a long format df can work too, but for only a few cols we prefer this
+df <- read.csv("../data/normal_efficiency.csv")
+
+df %>%
+    group_by(N_pts) %>%
+    summarise(
+        OLS_mse = mse(slope_ols, 1),
+        MM_mse = mse(slope_mm, 1),
+        OLS_var = var(slope_ols),
+        MM_var = var(slope_mm),
+        efficiency = OLS_var / MM_var,
+        mse_ratio = OLS_mse / MM_mse,
+    ) %>%
+    mutate(across(!c(efficiency, N_pts, mse_ratio), ~ formatC(.x, format = "e", digits = 3)), efficiency = round(efficiency, 2), mse_ratio = round(mse_ratio, 2)) %>%
+    kbl(
+        col.names = c(
+            "$N$",
+            "$\\text{MSE}(\\hat{\\beta}_{\\text{OLS}})$",
+            "$\\text{MSE}(\\hat{\\beta}_{\\text{MM}})$",
+            "$\\operatorname{Var}({\\hat{\\beta}_{\\text{OLS}}})$",
+            "$\\operatorname{Var}({\\hat{\\beta}_{\\text{MM}}})$",
+            "Effeithlonrwydd",
+            "Cymhareb MSE"
+        ),
+        format = "latex",
+        booktabs = TRUE,
+        escape = FALSE,
+    ) %>%
+    kable_styling(latex_options = c("hold_position"))
+```
+
+## Efelychiad Halogiad Allanolion Eithafol {#sec-g-outlier-sim}
+
+Nesaf, rydym yn efelychu’r amcangyfrifydd MM eto gyda sŵn mwy realistig. Gan ddechrau o @eq-line-and-small-gaussian-noise unwaith eto, mae 40% o’r pwyntiau data yn cael sŵn $\mathcal{N}(0, 10)$ wedi’i ychwanegu. Ffitiwyd amcangyfrifon MM ac OLS, a dangosir y canlyniadau yn @tbl-gross-outlier-mse. Yn y sefyllfa hon, gwelwn fod yr amcangyfrifydd MM yn orchymyn maint yn fwy effeithlon ac yn llai amrywiol o’i gymharu ag OLS, er nad yw OLS yn chwalu’n llwyr.
+
+```{r}
+#| label: tbl-gross-outlier-mse
+#| tbl-cap: "Cymhariaeth o MSE amcangyfrifyddion MM ac OLS gyda gwerthoedd $N$ amrywiol a sŵn $\\mathcal{N}(0, 10^2)$ ar 40% o’r arsylwadau, wedi’u cyfartaleddu dros 10,000 ailadroddiad. Gweler y sylw yn @tbl-normal-eff ynghylch colofnau’r effeithlonrwydd a’r gymhareb MSE."
+
+contamination_pct <- 40
+
+df <- read.csv(glue("../data/gross_outlier_{contamination_pct}.csv"))
+
+df %>%
+    group_by(N_pts) %>%
+    summarise(
+        OLS_mse = mse(slope_ols, 1),
+        MM_mse = mse(slope_mm, 1),
+        OLS_var = var(slope_ols),
+        MM_var = var(slope_mm),
+        efficiency = OLS_var / MM_var,
+        mse_ratio = OLS_mse / MM_mse,
+    ) %>%
+    mutate(across(!c(efficiency, N_pts, mse_ratio), ~ formatC(.x, format = "e", digits = 3)), efficiency = round(efficiency, 2), mse_ratio = round(mse_ratio, 2)) %>%
+    kbl(
+        col.names = c(
+            "$N$",
+            "$\\text{MSE}(\\hat{\\beta}_{\\text{OLS}})$",
+            "$\\text{MSE}(\\hat{\\beta}_{\\text{MM}})$",
+            "$\\operatorname{Var}({\\hat{\\beta}_{\\text{OLS}}})$",
+            "$\\operatorname{Var}({\\hat{\\beta}_{\\text{MM}}})$",
+            "Effeithlonrwydd",
+            "Cymhareb MSE"
+        ),
+        format = "latex",
+        booktabs = TRUE,
+        escape = FALSE,
+    ) %>%
+    kable_styling(latex_options = c("hold_position"))
+```
+
+## Efelychiad Pwynt Chwalu {#sec-breakdown-sim}
+
+Nawr rydym yn ceisio gwirio pwynt chwalu’r amcangyfrifydd MM a luniwyd yn @sec-mm-and-fast-s, sydd tua 50%. Yn yr efelychiad hwn rydym yn dechrau o @eq-line-and-small-gaussian-noise unwaith eto ac yn gosod cyfran gynyddol o’r pwyntiau i $y = 10,000$. Mae hyn yn creu dwy linell gystadleuol, sef $y = 10000$ ac @eq-line-and-small-gaussian-noise. Rydym yn gosod $N = 200$ a $1500$ ailadroddiad ar gyfrannau halogiad o $\epsilon = 0.2, 0.45, 0.49, 0.5, 0.51$ a $0.55$. Gellir gweld y canlyniadau yn @fig-breakdown-line-graph ac @tbl-breakdown-slope, ynghyd â thrafodaeth ar y term rhyngdoriad yn @tbl-breakdown-intercept-appendix. Y nodwedd fwyaf trawiadol o’r ffigur yw’r brig ger $\epsilon = 0.5$ a’r RMSE wedyn yn gostwng yn ôl i un — sef y gwall pan fydd y model yn ffitio’n gyfan gwbl i’r llinell $y = 10000$. Mae’r RMSE uchaf yn cynrychioli’r pwynt pan nad yw’r amcangyfrifydd MM yn gallu gwahaniaethu rhwng yr halogiad a’r llinell wreiddiol, ond ar gyfer $\epsilon$ yn fwy na 0.5 mae’r amcangyfrifydd MM yn pasio’n gyfan gwbl drwy’r pwyntiau halogedig. Mae stori debyg yn wir ar gyfer rhyngdoriad yr amcangyfrifydd MM (panel isaf), sef ei fod yn dirywio’n raddol hyd nes bod hanner y pwyntiau wedi’u halogi. Ar y llaw arall, yn y ddau achos mae OLS yn perfformio’n wael hyd yn oed pan $\epsilon = 0.2$, ac mae’n dirywio ar gyfradd gyson. Yn @tbl-breakdown-slope gwelwn fod yr amrywiant hefyd yn ymddwyn yn debyg i’r RMSE ar gyfer yr amcangyfrifydd MM, gan fod ar ei uchaf pan fo sŵn a data gwirioneddol mewn cyfrannau cyfartal ac yna’n lleihau pan fo sŵn yn fwy cyffredin na data gwirioneddol. Canfyddiad diddorol yw nad yw hyn yn digwydd ar gyfer rhagfarn y llethr; fodd bynnag, ar gyfer y math hwn o sŵn, mae rhagfarn sy’n agos at 1 yn dal i ddangos bod yr amcangyfrifydd wedi chwalu.
+
+
+```{r}
+#| label: fig-breakdown-line-graph
+#| fig-cap: Graff llinell o RMSE (y) yn erbyn cyfran $\epsilon$ o allanolion. Gellid defnyddio MSE yn lle hynny ar gyfer yr echel y, ond mae RMSE yn haws i’w ddehongli. Sylwer ar ddirywiad graddol OLS a’r cynnydd sydyn yn RMSE ar gyfer MM ger $\epsilon = 0.5$, gan gadarnhau’r pwynt chwalu. Mae cyfyngau hyder 95% wedi’u cysgodi gan ddefnyddio bootstrap hefyd wedi’u plotio, wedi’u cyfrifo dros 1000 sampl gyda disodli.
+#| fig-width: 6
+#| fig-height: 4
+
+df <- read.csv("../data/breakdown_200.csv")
+
+boot_rmse <- function(x, x_hat, reps = 1000) {
+    boots <- replicate(reps, {
+        s <- sample(x, replace = TRUE)
+        sqrt(mean((s - x_hat)^2))
+    })
+    quantile(boots, c(0.025, 0.975))
+}
+
+# long code blocks here, would need to be refactored if we were considering more predictors or different estimators
+slope_df <- df %>%
+    group_by(cp) %>%
+    summarise(
+        rmse_mm = sqrt(mean((slope_mm - 1)^2)),
+        rmse_ols = sqrt(mean((slope_ols - 1)^2)),
+        mm_ci_lo = boot_rmse(slope_mm, 1)[1],
+        mm_ci_hi = boot_rmse(slope_mm, 1)[2],
+        ols_ci_lo = boot_rmse(slope_ols, 1)[1],
+        ols_ci_hi = boot_rmse(slope_ols, 1)[2]
+    )
+
+intercept_df <- df %>% # the true value of our intercept
+    group_by(cp) %>%
+    summarise(
+        rmse_mm = sqrt(mean((intercept_mm - 0)^2)),
+        rmse_ols = sqrt(mean((intercept_ols - 0)^2)),
+        mm_ci_lo = boot_rmse(intercept_mm, 0)[1],
+        mm_ci_hi = boot_rmse(intercept_mm, 0)[2],
+        ols_ci_lo = boot_rmse(intercept_ols, 0)[1],
+        ols_ci_hi = boot_rmse(intercept_ols, 0)[2]
+    )
+
+# ---- 
+
+slope_breakdown <- ggplot(slope_df, aes(x = cp)) +
+    geom_ribbon(aes(ymin = mm_ci_lo, ymax = mm_ci_hi), fill = "red", alpha = 0.2) +
+    geom_ribbon(aes(ymin = ols_ci_lo, ymax = ols_ci_hi), fill = "blue", alpha = 0.2) +
+    geom_line(aes(y = rmse_mm, color = "MM")) +
+    geom_line(aes(y = rmse_ols, color = "OLS")) +
+    scale_color_manual(values = c("MM" = "red", "OLS" = "blue"), name = NULL) +
+    labs(x = NULL, title = "Llethr", y = "RMSE") +
+    theme_minimal() +
+    theme(axis.text.x = element_blank(), legend.position = "none", plot.title = element_text(size = 9))
+
+intercept_breakdown <- ggplot(intercept_df, aes(x = cp)) +
+    geom_ribbon(aes(ymin = mm_ci_lo, ymax = mm_ci_hi), fill = "red", alpha = 0.2) +
+    geom_ribbon(aes(ymin = ols_ci_lo, ymax = ols_ci_hi), fill = "blue", alpha = 0.2) +
+    geom_line(aes(y = rmse_mm, color = "MM")) +
+    geom_line(aes(y = rmse_ols, color = "OLS")) +
+    scale_color_manual(values = c("MM" = "red", "OLS" = "blue"), name = NULL) +
+    labs(title = "Rhyngdoriad", x = TeX("$\\epsilon$"), y = "RMSE") +
+    theme_minimal() +
+    theme(legend.position = "none", plot.title = element_text(size = 9))
+
+(slope_breakdown / intercept_breakdown +
+    plot_layout(guides = "collect") &
+    theme(legend.position = "bottom")) +
+    plot_annotation(title = TeX("Dadansoddiad RMSE o $\\hat{\\beta}$"), theme = theme(plot.title = element_text(size = 11)))
+
+# ----
+```
+
+```{r}
+#| label: tbl-breakdown-slope
+#| tbl-cap: Tabl o RMSE, amrywiant a rhagfarn amcangyfrifyddion OLS ac MM ar gyfer cyfrannau amrywiol $\epsilon$ o halogiad. Mae gwerthoedd halogedig yn cael eu gosod i 10000, tra bod data glân yn dilyn @eq-line-and-small-gaussian-noise. Mae’r tabl hwn yn ymdrin ag amcangyfrif y llethr; gweler @sec-breakdown-intercept-appendix am drafodaeth ar y rhyngdoriad.
+
+df %>%
+    group_by(cp) %>%
+    summarise(
+        OLS_rmse = rmse(slope_ols, 1),
+        MM_rmse = rmse(slope_mm, 1),
+        OLS_var = var(slope_ols),
+        MM_var = var(slope_mm),
+        OLS_bias = mean(slope_ols) - 1,
+        MM_bias = mean(slope_mm) - 1
+    ) %>%
+    mutate() %>%
+    kbl(
+        col.names = c(
+            "$\\epsilon$",
+            "$\\text{RMSE}(\\hat{\\beta}_{\\text{OLS}})$",
+            "$\\text{RMSE}(\\hat{\\beta}_{\\text{MM}})$",
+            "$\\operatorname{Var}({\\hat{\\beta}_{\\text{OLS}}})$",
+            "$\\operatorname{Var}({\\hat{\\beta}_{\\text{MM}}})$",
+            "$\\text{Rhagfarn }({\\hat{\\beta}_{\\text{OLS}}})$",
+            "$\\text{Rhagfarn }({\\hat{\\beta}_{\\text{MM}}})$"
+        ),
+        format = "latex",
+        booktabs = TRUE,
+        escape = FALSE,
+    ) %>%
+    kable_styling(latex_options = c("hold_position"))
+```
+
+## Cytundeb â MASS
+
+Yn olaf, rydym yn gwirio bod ein gweithrediad yn gywir drwy ei brofi yn erbyn `MASS` @MASS, yn benodol y ffwythiant `rlm` sy’n perfformio amcangyfrif MM~gyda Fast-S fel yr amcangyfrifydd cychwynno.
+
+```{r}
+#| label: fig-mass-vs-mm-convergence
+#| fig-cap: Graff llinell o nifer y samplau (x) yn erbyn y gwahaniaeth cymharol ac absoliwt rhwng ein hamcangyfrifydd MM a MASS, ar gyfer y llethr a’r rhyngdoriad yn y drefn honno. Nodwch fod y gwahaniaeth absoliwt wedi’i ddewis ar gyfer y rhyngdoriad er mwyn osgoi rhannu â sero. Dangosir y canolrif a’r 95fed canradd, ac mae’r gostyngiad wrth i $N$ gynyddu yn dangos bod ein hamcangyfrifydd yn cytuno’n agos iawn â MASS.
+#| fig-width: 6
+#| fig-height: 4
+
+df <- read.csv("../data/mass_agreement.csv")
+plot_df <- df %>%
+    mutate(rd_slope = abs(slope_mm - slope_mass), ad_int = abs(intercept_mm - intercept_mass)) %>%
+    group_by(N_pts) %>%
+    summarise(
+        median_rd_slope = median(rd_slope),
+        median_ad_int = median(ad_int),
+        pct_95_rd_slope = quantile(rd_slope, 0.95),
+        pct_95_ad_int = quantile(ad_int, 0.95)
+    )
+
+# thought about adding a bootstrap ci but it's so small it's invisible!
+
+p1 <- ggplot(plot_df, aes(x = N_pts)) +
+    geom_line(aes(y = median_rd_slope, color = "canolrhif")) +
+    geom_line(aes(y = pct_95_rd_slope, color = "ganradd 95ed"), linetype = 2) +
+    scale_colour_manual(values = c("canolrhif" = "red", "ganradd 95ed" = "blue"), name = NULL) +
+    labs(x = NULL, y = "cymharol", title = "Llethr") +
+    theme_minimal() +
+    theme(axis.text.x = element_blank(), legend.position = "none", plot.title = element_text(size = 9))
+
+p2 <- ggplot(plot_df, aes(x = N_pts)) +
+    geom_line(aes(y = median_ad_int, color = "canolrhif")) +
+    geom_line(aes(y = pct_95_ad_int, color = "ganradd 95ed"), linetype = 2) +
+    scale_colour_manual(values = c("canolrhif" = "red", "ganradd 95ed" = "blue"), name = NULL) +
+    labs(x = TeX("$N$"), y = "absoliwt", title = "Rhyngdoriad") +
+    theme_minimal() +
+    theme(legend.position = "none", plot.title = element_text(size = 9))
+
+
+(p1 / p2 + 
+    plot_layout(guides = "collect") &
+    theme(legend.position = "bottom")) +
+    plot_annotation(title = "Cytundeb rhwng MASS a’n hamcangyfrifydd MM yn ôl maint y sampl.", theme = theme(plot.title = element_text(size = 11)))
+```
+
+# Casgliad
+
+I gloi, drwy ysgogi enghreifftiau o reolau bras a dulliau hewristig ar gyfer canfod allanolion, rydym yn cyflwyno amcangyfrifyddion M fel cyffredinoliad o MLE ac OLS. Nesaf, trafodir damcaniaeth amcangyfrifyddion S ac MM a’u priodweddau cadarn. Mae hyn yn cynrychioli dull systematig o leihau pwysau allanolion, sy’n well na dileu pwyntiau data neu ddulliau eraill heb wneud rhagdybiaethau am y data. Mae amcangyfrifyddion MM yn cadw llawer o briodweddau ystadegol OLS, gan gynnwys cysondeb a normalrwydd asymptotig, tra bod ganddynt bwynt chwalu o 50% ac yn aros yn 85–95% effeithlon o’i gymharu ag OLS o dan wallau normal. Yn ymarferol, mae’r algorithm Fast-S yn galluogi amcangyfrifyddion MM i gael eu ffitio’n gyflym ar gyfer $p$ cymedrol, ac ar gyfer $p$ mawr mae’r amcangyfrifydd cychwynnol P-Y o @sec-mm-and-fast-s yn perfformio’n dda iawn. Mae efelychiadau yn @sec-simulation yn cadarnhau hyn ymhellach — mae amcangyfrif MM yn ddewis cadarn hyfyw yn lle OLS.
+
+Gellir defnyddio’r weithdrefn a ddisgrifir yn @sec-mm-and-fast-s gyda ffwythiannau $\psi$ gwahanol, ac fel amcangyfrifydd cychwynnol i gynyddu effeithlonrwydd a phwynt chwalu sampl fechan ymhellach; gweler @alma9911772489302420[p. 155, 159-164]. Mewn dimensiynau uwch, mae allanolion yn anos eu gweld a’u hystyried yn uniongyrchol, gan bwysleisio pwysigrwydd amcangyfrifyddion MM ar gyfer atchweliad aml-newidyn cadarn. Nid yw hyn wedi’i gyfyngu i broblemau atchweliad syml yn unig; er enghraifft, mae rheoleiddio a dadansoddi cyfresi amser hefyd yn addas ar gyfer dulliau cadarn, gweler @alma9911772489302420[p. 165-171, 293-361].
+
+
+
+# Cyfeiriadau 
+
+::: {#refs}
+:::
+
+# Cyfraniadau’r Awduron
+
+- Cysyniadoli: AL, AW, LlD
+- Gweinyddu’r prosiect: AL
+- Meddalwedd: AL, AW, IB
+- Dadansoddiad Ffurfiol: AL, IB
+- Dilysu: AL
+- Delweddu: AL, LlD
+- Ysgrifennu – drafft gwreiddiol: AL, AW, LlD, CH, IB
+- Ysgrifennu – adolygu a golygu: AL, AW, LlD, CH, IB, AA
+- Cyfieithu i’r Gymraeg: CH, LlD, IB
+
+# Atodiad {.appendix}
+
+## Algorithmau {#sec-algos}
+
+\begin{algorithm}[H]
+\begin{algorithmic}
+\caption{Fast-S}
+\label{alg:fast-s}
+\algnotext{EndFor}
+\algnotext{EndIf}
+\algnotext{EndWhile}
+\algnotext{EndFunction}
+
+\Require $n \geq 0$
+\Require $\text{length}(x) = \text{length}(y)$
+\Require $T\gg0$ uchafswm nifer yr iteriadau
+\Function{Fast{-}S}{$x, y, p, T$}
+    \State $\mathbf{X} \leftarrow \begin{bmatrix} \mathbf{1} & x \end{bmatrix}$ \Comment{ychwanegu colofn o 1au ar gyfer y term rhyngdoriad}
+    \State $\text{ymgeisydd} \leftarrow [\, ]$
+    \State $N_{\text{sub}} \leftarrow \lceil \log(\alpha) / \log(1 - (1-\epsilon)^p) \rceil$ \Comment{gweler \eqref{eq-subsample-lbound}}
+    \State  $\rho_k(x), w_k(x)$ \leftarrow \text{$\rho$ Bisquare, a phwysau cyfatebol gyda $k=1.547$}
+
+
+    \For{$i = 1, \dots, N_{\text{sub}}$}
+        \State $\xi_i \leftarrow $ is-sampl ar hap o $p$ mynegrifau o $\{1, \dots, n\}$
+        \State $\mathbf{X}_{i} \leftarrow \mathbf{X}[\xi_i,\, :]$
+        \State $y_{i} \leftarrow y[\xi_i]$
+        \State $\hat{\beta} \leftarrow (\mathbf{X}_i^\top \mathbf{X}_i)^{-1} \mathbf{X}_i^\top y_i$ \Comment{ffitio OLS drwy $p$ pwynt}
+        \State $r(\hat{\beta}) \leftarrow y - \mathbf{X} \hat{\beta}$ \Comment{cymryd gweddillion ar y data llawn}
+        \State $s_{\text{init}} \leftarrow \Call{MADN}{r(\hat{\beta})}$
+        \State $s \leftarrow \Call{S-scale-iteration}{r(\hat{\beta}), s_{\text{init}}, \, \rho_{k}(x)}$
+
+        \State $K_{\text{iter}} \leftarrow 2$ \Comment{gellir gosod hwn i 1 hefyd heb lawer o effaith ar y canlyniad}
+        \\
+        
+        \For{$j = 1, \dots, K_{\text{iter}}}$ \Comment{Camau gwella (I-steps), tebyg i IRLS}
+
+            \State $(\hat{\beta}, s ) \leftarrow \Call {I{-}Step}{\hat{\beta}, s, \, \rho_{k}(x), w_k(x)$}
+        \EndFor
+        \State $\text{ymgeisydd}[i] \leftarrow (\hat{\beta},\ s)$
+    \EndFor
+
+    \State $\text{ymgeisydd} \leftarrow$ the $\min(10, N_{\text{sub}})$ ymgeisydd gyda’r $s$ lleiaf
+    \\
+    \State $s^* \leftarrow \infty$
+
+    \For{$(\hat{\beta}, s) \in \text{ymgeisydd}$}
+        \For{$i = 1 \dots T$} \Comment{I-steps nes cydgyfeiriant}
+            \State $(\hat{\beta}, s_{\text{new}}) \leftarrow \Call {I{-}Step}{\hat{\beta}, s, \, \rho_{k}(x), w_k(x)$}
+            \If{$|(s_{\text{new}} / s) - 1| < \epsilon$} \Comment{gwiriad cydgyfeiriant}
+                \State $s \leftarrow s_{\text{new}}$
+                \Break
+            \Else
+                \State $s \leftarrow s_{\text{new}}$
+            \EndIf
+        \EndFor
+        \If{$s < s^*$}
+            \State $(\hat{\beta}^*, s^*) \leftarrow (\hat{\beta}, s)$
+        \EndIf
+    \EndFor
+
+    \State \Return $(\hat{\beta}^*, s^*)$
+
+    \EndFunction
+
+\end{algorithmic}
+\end{algorithm}
+
+
+\begin{algorithm}[H]
+\begin{algorithmic}
+\caption{S{-}Scale{-}iteration}
+\label{alg:s-scale-iteration}
+\Function{S{-}Scale{-}iteration}{$r(\hat{\beta}), s_{\text{init}}, \rho_k, w_k, T$}
+
+    \State $\delta \leftarrow 0.5$ \Comment{dewiswyd ar gyfer y teulu Bisquare}
+
+    \State $s \leftarrow s_{\text{init}}$
+    \For{$k = 1, \dots, T$}
+        \State $s_{\text{new}} \leftarrow s \sqrt{\frac{1}{n\delta} \sum_{i=1}^{n} \rho(r(\hat{\beta}) / s)}$ 
+        \If{$|(s_{\text{new}} / s) - 1| < \epsilon$} \Comment{gwiriad cydgyfeiriant}
+            \State $s \leftarrow s_{\text{new}}$
+            \Break
+        \Else
+            \State $s \leftarrow s_{\text{new}}$
+        \EndIf
+    \EndFor
+    \State \Return $s$
+\EndFunction
+
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\begin{algorithmic}
+\caption{I{-}Step}
+\label{alg:I-step}
+
+\Function{I{-}Step}{$\hat{\beta}, s_{\text{init}}, \rho_k, w_k$}
+    \State $\mathbf{W} \leftarrow \text{diag}(w_k(r(\hat{\beta}) / s))$
+    \State $\hat{\beta} \leftarrow (\mathbf{X}^\top \mathbf{W} \mathbf{X})^{-1} \mathbf{X}^\top \mathbf{W} y$
+    \State $r(\hat{\beta}) \leftarrow y - \mathbf{X} \hat{\beta}$
+    \State $s \leftarrow \Call{S-scale-iteration}{r(\hat{\beta}), s_{\text{init}}, \, \rho_{k}(x)}$
+    \State \Return $(\hat{\beta}, s)$
+\EndFunction
+
+\end{algorithmic}
+\end{algorithm}
+
+## Dosbarthiad normal llethrau’r amcangyfrifydd MM {#sec-m-est-normal-dist}
+
+Yn gyntaf, rydym yn archwilio histogram a QQ-plot o lethrau’r amcangyfrifydd MM yn @fig-slope-histogram-appendix. Yn weledol, mae’n ymddangos bod y llethrau’n dilyn dosbarthiad tua normal. Yna, yn @tbl-mm-ad-test-appendix defnyddiwn brawf Anderson-Darling (AD) nad yw’n gwrthod y rhagdybiaeth nwl o normaledd. O gymryd y rhain gyda’i gilydd, ceir tystiolaeth gref bod amcangyfrifon yr amcangyfrifydd MM yn dilyn dosbarthiad normal.
+
+```{r}
+#| label: fig-slope-histogram-appendix
+#| fig-cap: Histogram o lethrau (uchod) a QQ-plot (isod) yr amcangyfrifydd MM a efelychwyd yn @sec-normal-eff-sim ar gyfer yr achos $N=500$. Cynhwysir y QQ-plot fel gwiriad ychwanegol er bod y histogram yn ymddangos i fod â siâp dosbarthiad normal.
+#| fig-width: 6
+#| fig-height: 3
+
+df <- read.csv("../data/normal_efficiency.csv")
+
+hist <- df %>%
+    filter(N_pts == 500) %>%
+    ggplot(aes(x = slope_mm)) +
+    geom_histogram(bins = 30) +
+    labs(x = TeX("$\\hat{\\beta}_{MM}$"), y = "Cyfrif") +
+    theme_minimal()
+
+qqplot <- df %>%
+    filter(N_pts == 500) %>%
+    ggplot(aes(sample = slope_mm)) +
+    stat_qq(size = 0.15) +
+    stat_qq_line() +
+    theme_minimal()
+
+hist / qqplot
+```
+
+```{r}
+#| label: tbl-mm-ad-test-appendix
+#| tbl-cap: Gwerthoedd p prawf Anderson-Darling (AD) yn ôl $N$.
+
+df %>%
+    group_by(N_pts) %>%
+    summarise(ad_pval = ad.test(slope_mm)$p.value) %>%
+    mutate(ad_pval = round(ad_pval, 3)) %>%
+    kbl(
+        col.names = c("$N$", "gwerth p AD"),
+        format = "latex",
+        booktabs = TRUE,
+        escape = FALSE,
+        align = "rc"
+    ) %>%
+    kable_styling(latex_options = c("hold_position"))
+```
+
+## Dadfeiliad y rhyngdoriad {#sec-breakdown-intercept-appendix}
+
+Rydym yn dangos manylion y term rhyngdoriad yn @tbl-breakdown-intercept-appendix, o’r efelychiad yn @sec-breakdown-sim. Nid ydym yn gweld gostyngiad mewn unrhyw fetrig ar ôl y pwynt dadfeiliad, ond mae hyn oherwydd y dewis o halogiad sef $y=10000$. Mae’n ymddangos bod dadfeiliad y rhyngdoriad yn digwydd yn gynharach na’r llethr; gellid efelychu’r canlyniadau dros fwy o werthoedd $N$ ac $\epsilon$ gyda mathau gwahanol o halogiad i gadarnhau hyn ymhellach.
+
+```{r}
+#| label: tbl-breakdown-intercept-appendix
+#| tbl-cap: Efelychiad o ddadfeiliad y rhyngdoriad ar gyfer yr amcangyfrifydd MM o @sec-breakdown-sim. Mae @tbl-breakdown-slope yn dangos y canlyniadau ar gyfer amcangyfrif y llethr.
+
+df <- read.csv("../data/breakdown_200.csv")
+
+df %>%
+    group_by(cp) %>%
+    summarise(
+        OLS_rmse = rmse(intercept_ols, 0),
+        MM_rmse = rmse(intercept_mm, 0),
+        OLS_var = var(intercept_ols),
+        MM_var = var(intercept_mm),
+        OLS_bias = mean(intercept_ols) - 0,
+        MM_bias = mean(intercept_mm) - 0
+    ) %>%
+    mutate() %>%
+    kbl(
+        col.names = c(
+            "$\\epsilon$",
+            "$\\text{RMSE}(\\hat{\\beta}_{\\text{OLS}})$",
+            "$\\text{RMSE}(\\hat{\\beta}_{\\text{MM}})$",
+            "$\\operatorname{Var}({\\hat{\\beta}_{\\text{OLS}}})$",
+            "$\\operatorname{Var}({\\hat{\\beta}_{\\text{MM}}})$",
+            "$\\text{Rhagfarn}({\\hat{\\beta}_{\\text{OLS}}})$",
+            "$\\text{Rhagfarn}({\\hat{\\beta}_{\\text{MM}}})$"
+        ),
+        format = "latex",
+        booktabs = TRUE,
+        escape = FALSE,
+    ) %>%
+    kable_styling(latex_options = c("hold_position"))
+```
+
+## MAD y dosbarthiad normal {#sec-normal-dist-mad-proof}
+
+Rydym yn rhoi prawf o’r ffaith bod
+
+$$ \text{MAD}(X)=\sigma\Phi^{-1}(0.75) \quad\text{gyda}\quad X\sim\mathcal{N}(\mu,\sigma^2). $$
+ 
+Gan nodi mai $\mu$ yw canolrif y dosbarthiad normal, ceir ar gyfer $X\sim\mathcal{N}(\mu, \sigma^2)$
+
+\begin{align*}
+\text{MAD}(X) &= \text{canolrif}|X-\text{canolrif}(X)|\\
+    &= \text{canolrif}|X-\mu|
+\end{align*}
+
+Gan ddefnyddio’r syniad bod y canolrif yn rhannu’r sampl yn ei hanner, ceir
+
+\begin{align*}
+\frac{1}{2} &= \mathbb{P}(|X-\mu| \leq \text{MAD})\\
+    &= \mathbb{P}(|Z| \leq \text{MAD}/ \sigma)\\
+    &= \mathbb{P}(-\text{MAD}/ \sigma \leq Z \leq \text{MAD}/ \sigma)\\
+    &= \Phi(\text{MAD}/ \sigma) - \Phi(-\text{MAD}/ \sigma)\\
+    &= 2\Phi(\text{MAD}/ \sigma) - 1\\
+\frac{3}{4}    &= \Phi(\text{MAD}/ \sigma)\\
+\Phi^{-1}\left(\frac{3}{4}\right)&=\text{MAD}/ \sigma\\
+\implies \text{MAD} &= \sigma \Phi^{-1}\left(\frac{3}{4}\right) \approx 0.6745 \sigma
+\end{align*}
+
+
+## Amcangyfrifydd Theil-Sen {#sec-theil-sen}
+
+Diffinnir yr amcangyfrifydd atchweliad llinol Theil-Sen (TS) fel canolrif y llethrau
+
+$$
+\underset{\substack{i, j \\ j>i}}{\text{canolrif}}\left(\frac{y_j-y_i}{x_j-x_i}\right)
+$$
+
+a gellir dangos bod gan yr amcangyfrifydd hwn bwynt dadfeiliad o tua $\approx 29.3$%, gweler @huber_robust_stats[p. 66]. Mae’n dioddef o effeithlonrwydd normal isel fel amcangyfrifyddion S, ond nid yw’n cyffredinoli i ddimensiynau uwch. Mae gweithrediad naïf yn rhedeg mewn amser $\mathcal{O}(n^2)$, ond mae’r fformiwla TS yn debyg iawn i gyfrifo $\tau$ Kendall, sy’n caniatáu cyfrifiad mewn amser $\mathcal{O}(n\log n)$ gan ddefnyddio Merge Sort (gweler @tau_nlogn).
